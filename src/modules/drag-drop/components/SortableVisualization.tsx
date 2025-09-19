@@ -6,11 +6,10 @@
 import React, { ReactNode, CSSProperties } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
 
 interface SortableVisualizationProps {
   id: string;
-  children: ReactNode;
+  children: (dragHandleProps?: { attributes?: any; listeners?: any }) => ReactNode;
   isDragOverlay?: boolean;
 }
 
@@ -35,25 +34,21 @@ export function SortableVisualization({
     cursor: isDragging ? 'grabbing' : 'default',
   };
 
-  // If this is the drag overlay, render without drag handle
+  // If this is the drag overlay, render without drag handle props
   if (isDragOverlay) {
-    return <div className="relative">{children}</div>;
+    return <div className="relative">{typeof children === 'function' ? children() : children}</div>;
   }
+
+  // Pass drag handle props to children through render prop pattern
+  const dragHandleProps = {
+    attributes,
+    listeners,
+  };
 
   return (
     <div ref={setNodeRef} style={style} className="relative group">
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="absolute top-4 left-2 z-10 p-1 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Drag to reorder"
-      >
-        <GripVertical className="h-5 w-5 text-gray-500" />
-      </button>
-
-      {/* Visualization Content */}
-      {children}
+      {/* Render children with drag handle props */}
+      {typeof children === 'function' ? children(dragHandleProps) : children}
     </div>
   );
 }

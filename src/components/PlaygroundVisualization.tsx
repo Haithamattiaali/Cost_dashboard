@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
   LabelList,
 } from 'recharts';
-import { X, Settings, Table, Loader2, Trophy, Medal, Award } from 'lucide-react';
+import { X, Settings, Table, Loader2, GripVertical } from 'lucide-react';
 import { GridLayoutControl } from '../modules/grid-layout';
 import { formatCurrency } from '../utils/formatting';
 import { fetchPlaygroundData } from '../api/playground';
@@ -30,6 +30,10 @@ interface PlaygroundVisualizationProps {
   config: VisualizationConfig;
   onUpdate: (updates: Partial<VisualizationConfig>) => void;
   onRemove: () => void;
+  dragHandleProps?: {
+    attributes?: any;
+    listeners?: any;
+  };
 }
 
 // PROCEED Brand Colors (matching Dashboard.tsx)
@@ -117,24 +121,12 @@ const renderValueWithPercentage = (value: number, total: number) => {
   return `${formatCurrency(value, true)} (${percentage}%)`;
 };
 
-// Get ranking badge component
-const getRankingBadge = (rank: number) => {
-  switch(rank) {
-    case 1:
-      return <Trophy className="inline-block w-4 h-4 text-yellow-500 ml-2" />;
-    case 2:
-      return <Medal className="inline-block w-4 h-4 text-gray-400 ml-2" />;
-    case 3:
-      return <Award className="inline-block w-4 h-4 text-orange-600 ml-2" />;
-    default:
-      return null;
-  }
-};
 
 export default function PlaygroundVisualization({
   config,
   onUpdate,
   onRemove,
+  dragHandleProps,
 }: PlaygroundVisualizationProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [showTable, setShowTable] = useState(config.showTable);
@@ -174,8 +166,8 @@ export default function PlaygroundVisualization({
     switch (config.chartType) {
       case 'bar':
         return (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 60 }}>
+          <ResponsiveContainer width="100%" height={450}>
+            <BarChart data={chartData} margin={{ top: 50, right: 40, left: 30, bottom: 80 }}>
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
                 dataKey="name"
@@ -210,7 +202,7 @@ export default function PlaygroundVisualization({
 
       case 'pie':
         return (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={chartData}
@@ -218,7 +210,7 @@ export default function PlaygroundVisualization({
                 cy="50%"
                 labelLine={false}
                 label={renderCustomizedPieLabel}
-                outerRadius={100}
+                outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
@@ -234,8 +226,8 @@ export default function PlaygroundVisualization({
 
       case 'line':
         return (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData} margin={{ top: 40, right: 30, left: 20, bottom: 60 }}>
+          <ResponsiveContainer width="100%" height={450}>
+            <LineChart data={chartData} margin={{ top: 50, right: 40, left: 30, bottom: 80 }}>
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
                 dataKey="name"
@@ -300,6 +292,17 @@ export default function PlaygroundVisualization({
               compact
             />
             <div className="h-4 w-px bg-gray-300" />
+            {/* Drag Handle (if provided) */}
+            {dragHandleProps && (
+              <button
+                {...dragHandleProps.attributes}
+                {...dragHandleProps.listeners}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100"
+                title="Drag to reorder"
+              >
+                <GripVertical className="h-5 w-5" />
+              </button>
+            )}
             <button
               onClick={() => setShowSettings(!showSettings)}
               className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -432,47 +435,36 @@ export default function PlaygroundVisualization({
           <div className="px-6 py-4">
             <h4 className="text-sm font-semibold text-gray-900 mb-3">Data Table</h4>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y-2 divide-gray-200">
+              <table className="data-table">
                 <thead>
-                  <tr className="bg-gradient-to-r from-[#9e1f63] to-[#721548]">
-                    <th className="px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                  <tr>
+                    <th className="medium-column">
                       {dimensionLabel}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
+                    <th className="text-right">
                       {measureLabel}
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-white uppercase tracking-wider">
+                    <th className="narrow-column text-right">
                       Percentage
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {(() => {
                     const total = chartData.reduce((sum: number, r: any) => sum + r.value, 0);
-                    // Sort data to determine top 3
-                    const sortedData = [...chartData].sort((a: any, b: any) => b.value - a.value);
-                    const top3Values = sortedData.slice(0, 3).map((d: any) => d.value);
 
                     return chartData.map((row: any, index: number) => {
                       const percentage = (row.value / total) * 100;
-                      const rank = top3Values.indexOf(row.value) + 1;
 
                       return (
-                        <tr
-                          key={index}
-                          className={`
-                            transition-colors hover:bg-pink-50
-                            ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
-                          `}
-                        >
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        <tr key={index}>
+                          <td className="medium-column font-medium">
                             {row.name}
-                            {rank > 0 && rank <= 3 && getRankingBadge(rank)}
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
+                          <td className="text-right font-bold">
                             {formatCurrency(row.value)}
                           </td>
-                          <td className={`px-4 py-3 text-sm font-semibold text-right ${
+                          <td className={`narrow-column text-right font-semibold ${
                             percentage > 20 ? 'text-red-600' :
                             percentage > 10 ? 'text-orange-600' :
                             'text-gray-600'
@@ -484,13 +476,13 @@ export default function PlaygroundVisualization({
                     });
                   })()}
                 </tbody>
-                <tfoot className="border-t-2 border-gray-300">
-                  <tr className="bg-gradient-to-r from-[#9e1f63] to-[#721548]">
-                    <td className="px-4 py-3 text-sm font-bold text-white">Total</td>
-                    <td className="px-4 py-3 text-sm font-bold text-white text-right">
+                <tfoot>
+                  <tr className="bg-gray-100">
+                    <td className="font-bold text-gray-900">Total</td>
+                    <td className="font-bold text-gray-900 text-right">
                       {formatCurrency(chartData.reduce((sum: number, r: any) => sum + r.value, 0))}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-white text-right">
+                    <td className="font-bold text-gray-900 text-right">
                       100.0%
                     </td>
                   </tr>

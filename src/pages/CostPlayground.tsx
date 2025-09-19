@@ -174,11 +174,14 @@ export default function CostPlayground() {
               visualizations.map(viz => (
                 <div key={viz.id} className={getGridClassName(viz.gridWidth)}>
                   <SortableVisualization id={viz.id}>
-                    <MemoizedVisualization
-                      config={viz}
-                      onUpdate={(updates) => updateVisualization(viz.id, updates)}
-                      onRemove={() => removeVisualization(viz.id)}
-                    />
+                    {(dragHandleProps) => (
+                      <MemoizedVisualization
+                        config={viz}
+                        onUpdate={(updates) => updateVisualization(viz.id, updates)}
+                        onRemove={() => removeVisualization(viz.id)}
+                        dragHandleProps={dragHandleProps}
+                      />
+                    )}
                   </SortableVisualization>
                 </div>
               ))
@@ -190,11 +193,14 @@ export default function CostPlayground() {
                 renderItem={(viz) => (
                   <div key={viz.id} className={getGridClassName(viz.gridWidth)}>
                     <SortableVisualization id={viz.id}>
-                      <MemoizedVisualization
-                        config={viz}
-                        onUpdate={(updates) => updateVisualization(viz.id, updates)}
-                        onRemove={() => removeVisualization(viz.id)}
-                      />
+                      {(dragHandleProps) => (
+                        <MemoizedVisualization
+                          config={viz}
+                          onUpdate={(updates) => updateVisualization(viz.id, updates)}
+                          onRemove={() => removeVisualization(viz.id)}
+                          dragHandleProps={dragHandleProps}
+                        />
+                      )}
                     </SortableVisualization>
                   </div>
                 )}
@@ -206,15 +212,15 @@ export default function CostPlayground() {
 
       {/* Instructions */}
       {visualizations.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-pink-50 border border-pink-200 rounded-lg p-4">
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+              <svg className="h-5 w-5 text-[#9e1f63]" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-blue-700">
+              <p className="text-sm text-[#721548]">
                 <strong>Tips:</strong>
                 • Drag visualizations to reorder them (hover to see drag handle)
                 • Adjust each visualization's width using the layout controls
