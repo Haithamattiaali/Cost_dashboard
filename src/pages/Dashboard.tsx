@@ -255,91 +255,11 @@ export default function Dashboard() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+      </div>
 
-        {/* GL Account Cost Analysis - Full Width */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* OPEX vs CAPEX Pie Chart */}
         <div className="chart-container">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">GL Accounts by Total Cost</h3>
-            <div className="text-sm text-gray-600">
-              <span className="mr-4">
-                <span className="font-medium">Total GLs:</span> {allGLAccounts.length}
-              </span>
-              <span className="mr-4">
-                <span className="font-medium">Top 15 Displayed</span>
-              </span>
-              {othersTotal > 0 && (
-                <span>
-                  <span className="font-medium">Others:</span> {allGLAccounts.length - 15} GLs
-                </span>
-              )}
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={500}>
-            <BarChart data={costByGLAccount} layout="horizontal" margin={{ top: 30, right: 30, left: 20, bottom: 100 }}>
-              <CartesianGrid {...CHART_STYLES.grid} />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={120}
-                interval={0}
-                tick={CHART_STYLES.axisLabel}
-              />
-              <YAxis
-                tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(value as number)}
-                contentStyle={CHART_STYLES.tooltip.contentStyle}
-                labelStyle={CHART_STYLES.tooltip.labelStyle}
-              />
-              <Bar dataKey="totalCost" name="Total Cost">
-                <LabelList
-                  position="top"
-                  content={(props) => {
-                    const { x, y, width, value, index } = props;
-                    // Use totalAllGLCost for percentage calculation
-                    const percentage = totalAllGLCost > 0 ? (value / totalAllGLCost * 100).toFixed(1) : '0';
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 20}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: 'bold', fontSize: 10 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 8}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 9 }}
-                        >
-                          {percentage}%
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-                {costByGLAccount.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.name === 'Others' ? '#808080' : getBrandColor(index)}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* New Pie Charts Section - Two columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* OPEX vs CAPEX Pie Chart */}
-          <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">OPEX vs CAPEX Breakdown</h3>
             <ResponsiveContainer width="100%" height={400}>
               <PieChart>
@@ -445,7 +365,7 @@ export default function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+        </div>
 
           {/* Warehouse vs Transportation Pie Chart */}
           <div className="chart-container">
@@ -569,13 +489,94 @@ export default function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* GL Account Cost Analysis - Full Width */}
+      <div className="chart-container">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">GL Accounts by Total Cost</h3>
+            <div className="text-sm text-gray-600">
+              <span className="mr-4">
+                <span className="font-medium">Total GLs:</span> {allGLAccounts.length}
+              </span>
+              <span className="mr-4">
+                <span className="font-medium">Top 15 Displayed</span>
+              </span>
+              {othersTotal > 0 && (
+                <span>
+                  <span className="font-medium">Others:</span> {allGLAccounts.length - 15} GLs
+                </span>
+              )}
+            </div>
           </div>
+          <ResponsiveContainer width="100%" height={500}>
+            <BarChart data={costByGLAccount} layout="horizontal" margin={{ top: 30, right: 30, left: 20, bottom: 100 }}>
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                interval={0}
+                tick={CHART_STYLES.axisLabel}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={CHART_STYLES.axis}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={CHART_STYLES.tooltip.contentStyle}
+                labelStyle={CHART_STYLES.tooltip.labelStyle}
+              />
+              <Bar dataKey="totalCost" name="Total Cost">
+                <LabelList
+                  position="top"
+                  content={(props) => {
+                    const { x, y, width, value, index } = props;
+                    // Use totalAllGLCost for percentage calculation
+                    const percentage = totalAllGLCost > 0 ? (value / totalAllGLCost * 100).toFixed(1) : '0';
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 20}
+                          fill="#333"
+                          textAnchor="middle"
+                          style={{ fontWeight: 'bold', fontSize: 10 }}
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 8}
+                          fill="#666"
+                          textAnchor="middle"
+                          style={{ fontSize: 9 }}
+                        >
+                          {percentage}%
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
+                {costByGLAccount.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.name === 'Others' ? '#808080' : getBrandColor(index)}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Cost by Warehouse and Category - Two columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Cost by Warehouse */}
-          <div className="chart-container">
+
+      {/* Cost by Warehouse and Category - Two columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cost by Warehouse */}
+        <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">Cost by Warehouse</h3>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={costByWarehouse?.slice(0, 8)} layout="vertical">
@@ -630,10 +631,10 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
+        </div>
 
-          {/* Cost by Category */}
-          <div className="chart-container">
+        {/* Cost by Category */}
+        <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">Cost by TCO Category</h3>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={costByCategory?.slice(0, 8)}>
@@ -688,15 +689,15 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
         </div>
+      </div>
 
         {/* Cost Distribution Pie Chart - Full Width for better visibility */}
-        <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">Cost Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
+      <div className="chart-container">
+        <h3 className="text-lg font-semibold mb-4">Cost Distribution</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
                 data={[
                   { name: 'Warehouse', value: costByQuarter?.[0]?.warehouseCost || 0 },
                   { name: 'Transportation', value: costByQuarter?.[0]?.transportationCost || 0 },
@@ -736,9 +737,8 @@ export default function Dashboard() {
                 labelStyle={CHART_STYLES.tooltip.labelStyle}
               />
               <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+          </PieChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Data Table */}
