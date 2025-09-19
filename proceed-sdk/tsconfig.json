@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "composite": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "paths": {
+      "@proceed/core": ["packages/core/src"],
+      "@proceed/core/*": ["packages/core/src/*"],
+      "@proceed/components": ["packages/components/src"],
+      "@proceed/components/*": ["packages/components/src/*"],
+      "@proceed/backend": ["packages/backend/src"],
+      "@proceed/backend/*": ["packages/backend/src/*"],
+      "@proceed/cli": ["packages/cli/src"],
+      "@proceed/cli/*": ["packages/cli/src/*"],
+      "@proceed/adapters": ["packages/adapters/src"],
+      "@proceed/adapters/*": ["packages/adapters/src/*"]
+    }
+  },
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/components" },
+    { "path": "./packages/backend" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/adapters" }
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}

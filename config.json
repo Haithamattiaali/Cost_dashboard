@@ -1,0 +1,83 @@
+{
+  "name": "PROCEED Cost Dashboard",
+  "version": "1.0.0",
+  "environment": "development",
+
+  "api": {
+    "port": 3001,
+    "baseUrl": "http://localhost:3001/api",
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "healthCheckInterval": 30000
+  },
+
+  "database": {
+    "type": "sqlite",
+    "database": "./data/costs.db",
+    "migrations": {
+      "enabled": true,
+      "directory": "./migrations"
+    }
+  },
+
+  "cache": {
+    "type": "memory",
+    "ttl": 300000,
+    "maxSize": 100
+  },
+
+  "ui": {
+    "theme": "light",
+    "primaryColor": "#9e1f63",
+    "secondaryColor": "#424046",
+    "accentColor": "#e05e3d",
+    "blueAccent": "#005b8c",
+    "dateFormat": "yyyy-MM-dd",
+    "numberFormat": {
+      "decimals": 2,
+      "thousandsSeparator": ",",
+      "currencySymbol": "SAR",
+      "currencyPosition": "before"
+    }
+  },
+
+  "features": {
+    "dashboard": true,
+    "analytics": true,
+    "reporting": true,
+    "export": true,
+    "import": true,
+    "comparison": true,
+    "filtering": true,
+    "drilldown": true,
+    "notifications": false,
+    "collaboration": false,
+    "audit": true,
+    "experimental": false
+  },
+
+  "security": {
+    "authEnabled": false,
+    "corsEnabled": true,
+    "corsOrigins": ["http://localhost:5173", "http://localhost:3000"]
+  },
+
+  "excel": {
+    "allowedTypes": [".xlsx", ".xls"],
+    "maxFileSize": 52428800,
+    "uploadDirectory": "./uploads"
+  },
+
+  "branding": {
+    "companyName": "PROCEED",
+    "logoPath": "/assets/proceed-logo.svg",
+    "tagline": "From Theory to Action",
+    "colors": {
+      "bloodRushRed": "#9e1f63",
+      "cementGrey": "#424046",
+      "white": "#ffffff",
+      "coral": "#e05e3d",
+      "accentBlue": "#005b8c"
+    }
+  }
+}

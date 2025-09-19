@@ -1,0 +1,33 @@
+{
+  "name": "revenue-dashboard-example",
+  "version": "1.0.0",
+  "description": "Example revenue dashboard built with Proceed SDK",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "vite",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "vite build",
+    "build:backend": "tsc -p backend/tsconfig.json",
+    "start": "node backend/dist/server.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@proceed/core": "^1.0.0",
+    "@proceed/components": "^1.0.0",
+    "@proceed/backend": "^1.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vitest": "^1.3.1"
+  }
+}

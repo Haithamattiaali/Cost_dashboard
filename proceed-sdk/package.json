@@ -1,0 +1,50 @@
+{
+  "name": "@proceed/sdk",
+  "version": "1.0.0",
+  "description": "Enterprise-grade SDK for building revenue analytics dashboards",
+  "private": false,
+  "license": "MIT",
+  "author": "Proceed SDK Team",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proceed/sdk"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run build:core && npm run build:components && npm run build:backend && npm run build:cli && npm run build:adapters",
+    "build:core": "npm run build -w @proceed/core",
+    "build:components": "npm run build -w @proceed/components",
+    "build:backend": "npm run build -w @proceed/backend",
+    "build:cli": "npm run build -w @proceed/cli",
+    "build:adapters": "npm run build -w @proceed/adapters",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "install:all": "npm install && npm run build",
+    "dev": "npm run dev --workspaces --if-present",
+    "publish:all": "npm run build && npm publish --workspaces --access public",
+    "version:patch": "npm version patch --workspaces",
+    "version:minor": "npm version minor --workspaces",
+    "version:major": "npm version major --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3",
+    "vitest": "^1.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

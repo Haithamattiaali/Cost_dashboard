@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPEX/CAPEX Filter Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #9e1f63;
+        }
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #9e1f63;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7d1950;
+        }
+        .results {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .metric {
+            display: inline-block;
+            padding: 10px;
+            margin: 5px;
+            background: #e0e0e0;
+            border-radius: 4px;
+        }
+        .metric strong {
+            display: block;
+            color: #9e1f63;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>OPEX/CAPEX Filter Test Interface</h1>
+
+        <div class="filter-controls">
+            <select id="opexCapexFilter">
+                <option value="">All</option>
+                <option value="OpEx">OpEx</option>
+                <option value="CapEx">CapEx</option>
+                <option value="OPEX">OPEX (uppercase)</option>
+                <option value="CAPEX">CAPEX (uppercase)</option>
+                <option value="opex">opex (lowercase)</option>
+                <option value="capex">capex (lowercase)</option>
+            </select>
+            <button onclick="testFilter()">Test Filter</button>
+            <button onclick="testAllVariations()">Test All Variations</button>
+            <button onclick="clearResults()">Clear</button>
+        </div>
+
+        <div id="metrics"></div>
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+
+        async function testFilter() {
+            const filterValue = document.getElementById('opexCapexFilter').value;
+            const resultsDiv = document.getElementById('results');
+            const metricsDiv = document.getElementById('metrics');
+
+            resultsDiv.innerHTML = `Testing filter: "${filterValue || 'No filter'}"...\n`;
+
+            try {
+                const url = filterValue
+                    ? `${API_BASE}/costs/dashboard?opexCapex=${encodeURIComponent(filterValue)}`
+                    : `${API_BASE}/costs/dashboard`;
+
+                resultsDiv.innerHTML += `URL: ${url}\n\n`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success && data.metrics) {
+                    const m = data.metrics;
+                    resultsDiv.innerHTML += `<span class="success">✅ Request successful</span>\n\n`;
+                    resultsDiv.innerHTML += `Response:\n`;
+                    resultsDiv.innerHTML += `  Total Cost: $${m.totalCost.toLocaleString()}\n`;
+                    resultsDiv.innerHTML += `  OPEX: $${m.totalOpex.toLocaleString()}\n`;
+                    resultsDiv.innerHTML += `  CAPEX: $${m.totalCapex.toLocaleString()}\n`;
+                    resultsDiv.innerHTML += `  Data rows: ${m.topExpenses?.length || 0}\n`;
+
+                    metricsDiv.innerHTML = `
+                        <div class="metric">
+                            <strong>Total Cost</strong>
+                            $${m.totalCost.toLocaleString()}
+                        </div>
+                        <div class="metric">
+                            <strong>OPEX</strong>
+                            $${m.totalOpex.toLocaleString()}
+                        </div>
+                        <div class="metric">
+                            <strong>CAPEX</strong>
+                            $${m.totalCapex.toLocaleString()}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML += `<span class="error">❌ Request failed</span>\n`;
+                    resultsDiv.innerHTML += JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testAllVariations() {
+            const variations = ['', 'OpEx', 'CapEx', 'OPEX', 'CAPEX', 'opex', 'capex'];
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Testing all variations...\n\n';
+
+            for (const variation of variations) {
+                const url = variation
+                    ? `${API_BASE}/costs/dashboard?opexCapex=${encodeURIComponent(variation)}`
+                    : `${API_BASE}/costs/dashboard`;
+
+                try {
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (data.success && data.metrics) {
+                        const m = data.metrics;
+                        const hasData = m.totalCost > 0;
+                        resultsDiv.innerHTML += `${hasData ? '✅' : '⚠️'} "${variation || 'No filter'}": `;
+                        resultsDiv.innerHTML += `Total=$${m.totalCost.toLocaleString()}, `;
+                        resultsDiv.innerHTML += `OPEX=$${m.totalOpex.toLocaleString()}, `;
+                        resultsDiv.innerHTML += `CAPEX=$${m.totalCapex.toLocaleString()}\n`;
+                    } else {
+                        resultsDiv.innerHTML += `❌ "${variation || 'No filter'}": Failed\n`;
+                    }
+                } catch (error) {
+                    resultsDiv.innerHTML += `❌ "${variation || 'No filter'}": Error - ${error.message}\n`;
+                }
+            }
+
+            resultsDiv.innerHTML += '\nAll tests completed!';
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('metrics').innerHTML = '';
+        }
+
+        // Run initial test on load
+        window.onload = () => {
+            testFilter();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{
+  "name": "Revenue Dashboard",
+  "version": "1.0.0",
+  "environment": "development",
+
+  "api": {
+    "baseUrl": "http://localhost:3001/api",
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "healthCheckInterval": 30000
+  },
+
+  "database": {
+    "type": "sqlite",
+    "database": "./data/revenue.db",
+    "migrations": {
+      "enabled": true,
+      "directory": "./migrations"
+    }
+  },
+
+  "cache": {
+    "type": "memory",
+    "ttl": 300000,
+    "maxSize": 100
+  },
+
+  "ui": {
+    "theme": "light",
+    "primaryColor": "#1E40AF",
+    "secondaryColor": "#DB2777",
+    "dateFormat": "MM/dd/yyyy",
+    "numberFormat": {
+      "decimals": 2,
+      "thousandsSeparator": ",",
+      "currencySymbol": "$",
+      "currencyPosition": "before"
+    }
+  },
+
+  "features": {
+    "dashboard": true,
+    "analytics": true,
+    "reporting": true,
+    "export": true,
+    "import": true,
+    "notifications": false,
+    "collaboration": false,
+    "audit": false,
+    "experimental": false
+  },
+
+  "security": {
+    "authEnabled": false,
+    "corsEnabled": true,
+    "corsOrigins": ["http://localhost:5173", "http://localhost:3000"]
+  }
+}
