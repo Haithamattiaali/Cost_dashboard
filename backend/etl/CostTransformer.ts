@@ -8,6 +8,7 @@ export interface AggregatedCost {
   transportationCost: number;
   distributionCost: number;
   lastMileCost: number;
+  pharmaciesCost: number;
   proceed3PLWHCost: number;
   proceed3PLTRSCost: number;
   opexAmount: number;
@@ -63,6 +64,7 @@ export class CostTransformer {
           transportationCost: 0,
           distributionCost: 0,
           lastMileCost: 0,
+          pharmaciesCost: 0,
           proceed3PLWHCost: 0,
           proceed3PLTRSCost: 0,
           opexAmount: 0,
@@ -79,6 +81,7 @@ export class CostTransformer {
       agg.transportationCost += row.valueTRS;
       agg.distributionCost += row.valueDistribution;
       agg.lastMileCost += row.valueLastMile;
+      agg.pharmaciesCost += row.totalPharmacyDistLM; // This is the PHs (Pharmacies) cost value
       agg.proceed3PLWHCost += row.valueProceed3PLWH;
       agg.proceed3PLTRSCost += row.valueProceed3PLTRS;
 
@@ -125,8 +128,9 @@ export class CostTransformer {
       .filter(row => row.opexCapex?.toUpperCase() === 'CAPEX')
       .reduce((sum, row) => sum + row.totalIncurredCost, 0);
 
+    // Damasco Total = Pharmacies + Distribution + Last Mile
     const dmascoTotal = this.data.reduce(
-      (sum, row) => sum + row.valueDistribution + row.valueLastMile + row.valueWH + row.valueTRS,
+      (sum, row) => sum + row.totalPharmacyDistLM + row.valueDistribution + row.valueLastMile,
       0
     );
 

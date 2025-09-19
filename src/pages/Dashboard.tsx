@@ -741,6 +741,284 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
+      {/* NEW VISUALIZATIONS: Department Cost Analysis Section */}
+
+      {/* 1. Department Cost Breakdown Chart - Directly under pie charts */}
+      <div className="chart-container">
+        <h3 className="text-lg font-semibold mb-4">Department Cost Breakdown</h3>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart
+            data={(() => {
+              // Aggregate department costs from quarterly data
+              const pharmaciesTotal = costByQuarter?.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0) || 0;
+              const distributionTotal = costByQuarter?.reduce((sum, q) => sum + (q.distributionCost || 0), 0) || 0;
+              const lastMileTotal = costByQuarter?.reduce((sum, q) => sum + (q.lastMileCost || 0), 0) || 0;
+              const proceed3PLTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+
+              return [
+                {
+                  department: 'Pharmacies',
+                  cost: pharmaciesTotal,
+                  color: PROCEED_COLORS.primary
+                },
+                {
+                  department: 'Distribution',
+                  cost: distributionTotal,
+                  color: PROCEED_COLORS.secondary
+                },
+                {
+                  department: 'Last Mile',
+                  cost: lastMileTotal,
+                  color: PROCEED_COLORS.accent
+                },
+                {
+                  department: 'PROCEED 3PL',
+                  cost: proceed3PLTotal,
+                  color: PROCEED_COLORS.blue
+                },
+              ];
+            })()}
+            layout="horizontal"
+            margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+          >
+            <CartesianGrid {...CHART_STYLES.grid} />
+            <XAxis
+              type="number"
+              tickFormatter={(value) => formatCurrency(value, true)}
+              tick={CHART_STYLES.axis}
+            />
+            <YAxis
+              dataKey="department"
+              type="category"
+              tick={{ ...CHART_STYLES.axis, fontSize: 13 }}
+              width={90}
+            />
+            <Tooltip
+              formatter={(value) => formatCurrency(value as number)}
+              contentStyle={CHART_STYLES.tooltip.contentStyle}
+              labelStyle={CHART_STYLES.tooltip.labelStyle}
+            />
+            <Bar dataKey="cost" name="Cost">
+              <LabelList
+                position="right"
+                content={(props) => {
+                  const { x, y, height, value } = props;
+                  // Calculate total for percentage
+                  const pharmaciesTotal = costByQuarter?.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0) || 0;
+                  const distributionTotal = costByQuarter?.reduce((sum, q) => sum + (q.distributionCost || 0), 0) || 0;
+                  const lastMileTotal = costByQuarter?.reduce((sum, q) => sum + (q.lastMileCost || 0), 0) || 0;
+                  const proceed3PLTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                  const totalDeptCost = pharmaciesTotal + distributionTotal + lastMileTotal + proceed3PLTotal;
+                  const percentage = totalDeptCost > 0 ? (value / totalDeptCost * 100).toFixed(1) : '0';
+
+                  return (
+                    <g>
+                      <text
+                        x={x + 5}
+                        y={y + height / 2 - 5}
+                        fill="#333"
+                        textAnchor="start"
+                        style={{ fontWeight: 'bold', fontSize: 11 }}
+                      >
+                        {formatCurrency(value, true)}
+                      </text>
+                      <text
+                        x={x + 5}
+                        y={y + height / 2 + 8}
+                        fill="#666"
+                        textAnchor="start"
+                        style={{ fontSize: 10 }}
+                      >
+                        ({percentage}%)
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+              {(() => {
+                const pharmaciesTotal = costByQuarter?.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0) || 0;
+                const distributionTotal = costByQuarter?.reduce((sum, q) => sum + (q.distributionCost || 0), 0) || 0;
+                const lastMileTotal = costByQuarter?.reduce((sum, q) => sum + (q.lastMileCost || 0), 0) || 0;
+                const proceed3PLTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+
+                return [
+                  { department: 'Pharmacies', cost: pharmaciesTotal, color: PROCEED_COLORS.primary },
+                  { department: 'Distribution', cost: distributionTotal, color: PROCEED_COLORS.secondary },
+                  { department: 'Last Mile', cost: lastMileTotal, color: PROCEED_COLORS.accent },
+                  { department: 'PROCEED 3PL', cost: proceed3PLTotal, color: PROCEED_COLORS.blue },
+                ].map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ));
+              })()}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 2. Damasco vs PROCEED 3BL Comparison - Two column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="chart-container">
+          <h3 className="text-lg font-semibold mb-4">Damasco Operations vs PROCEED 3PL</h3>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart
+              data={(() => {
+                const pharmaciesTotal = costByQuarter?.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0) || 0;
+                const distributionTotal = costByQuarter?.reduce((sum, q) => sum + (q.distributionCost || 0), 0) || 0;
+                const lastMileTotal = costByQuarter?.reduce((sum, q) => sum + (q.lastMileCost || 0), 0) || 0;
+                const damascoTotal = pharmaciesTotal + distributionTotal + lastMileTotal;
+
+                const proceed3PLWHTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0), 0) || 0;
+                const proceed3PLTRSTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLTRSCost || 0), 0) || 0;
+                const proceed3PLTotal = proceed3PLWHTotal + proceed3PLTRSTotal;
+
+                return [
+                  {
+                    name: 'Damasco Operations',
+                    total: damascoTotal,
+                    pharmacies: pharmaciesTotal,
+                    distribution: distributionTotal,
+                    lastMile: lastMileTotal,
+                  },
+                  {
+                    name: 'PROCEED 3PL',
+                    total: proceed3PLTotal,
+                    warehouse: proceed3PLWHTotal,
+                    transportation: proceed3PLTRSTotal,
+                  },
+                ];
+              })()}
+              margin={{ top: 30, right: 30, left: 20, bottom: 60 }}
+            >
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="name"
+                tick={{ ...CHART_STYLES.axisLabel, angle: 0, textAnchor: 'middle' }}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={CHART_STYLES.axis}
+              />
+              <Tooltip
+                content={(props) => {
+                  const { active, payload } = props;
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div style={{ ...CHART_STYLES.tooltip.contentStyle, padding: '10px' }}>
+                        <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.name}</p>
+                        <p style={{ fontSize: '14px', marginBottom: '8px' }}>
+                          Total: {formatCurrency(data.total)}
+                        </p>
+                        {data.name === 'Damasco Operations' ? (
+                          <>
+                            <p style={{ fontSize: '12px' }}>Pharmacies: {formatCurrency(data.pharmacies)}</p>
+                            <p style={{ fontSize: '12px' }}>Distribution: {formatCurrency(data.distribution)}</p>
+                            <p style={{ fontSize: '12px' }}>Last Mile: {formatCurrency(data.lastMile)}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ fontSize: '12px' }}>Warehouse: {formatCurrency(data.warehouse)}</p>
+                            <p style={{ fontSize: '12px' }}>Transportation: {formatCurrency(data.transportation)}</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="total" name="Total Cost">
+                <LabelList
+                  position="top"
+                  content={(props) => {
+                    const { x, y, width, value } = props;
+                    const pharmaciesTotal = costByQuarter?.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0) || 0;
+                    const distributionTotal = costByQuarter?.reduce((sum, q) => sum + (q.distributionCost || 0), 0) || 0;
+                    const lastMileTotal = costByQuarter?.reduce((sum, q) => sum + (q.lastMileCost || 0), 0) || 0;
+                    const damascoTotal = pharmaciesTotal + distributionTotal + lastMileTotal;
+                    const proceed3PLTotal = costByQuarter?.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                    const grandTotal = damascoTotal + proceed3PLTotal;
+                    const percentage = grandTotal > 0 ? (value / grandTotal * 100).toFixed(1) : '0';
+
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 15}
+                          fill="#333"
+                          textAnchor="middle"
+                          style={{ fontWeight: 'bold', fontSize: 12 }}
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 3}
+                          fill="#666"
+                          textAnchor="middle"
+                          style={{ fontSize: 10 }}
+                        >
+                          {percentage}%
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
+                <Cell fill={PROCEED_COLORS.darkRed} />
+                <Cell fill={PROCEED_COLORS.blue} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 3. Cost Efficiency Metrics - Third Visualization */}
+        <div className="chart-container">
+          <h3 className="text-lg font-semibold mb-4">Quarterly Department Cost Trend</h3>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart
+              data={costByQuarter?.map(q => ({
+                quarter: q.value.toUpperCase(),
+                Damasco: (q.pharmaciesCost || 0) + (q.distributionCost || 0) + (q.lastMileCost || 0),
+                'PROCEED 3PL': (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0),
+              }))}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="quarter"
+                tick={CHART_STYLES.axis}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={CHART_STYLES.axis}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={CHART_STYLES.tooltip.contentStyle}
+                labelStyle={CHART_STYLES.tooltip.labelStyle}
+              />
+              <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
+              <Line
+                type="monotone"
+                dataKey="Damasco"
+                stroke={PROCEED_COLORS.darkRed}
+                strokeWidth={3}
+                dot={{ fill: PROCEED_COLORS.darkRed, r: 5 }}
+                activeDot={{ r: 7 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="PROCEED 3PL"
+                stroke={PROCEED_COLORS.blue}
+                strokeWidth={3}
+                dot={{ fill: PROCEED_COLORS.blue, r: 5 }}
+                activeDot={{ r: 7 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* Data Table */}
       <div className="chart-container">
         <h3 className="text-lg font-semibold mb-4">Top Expenses</h3>
