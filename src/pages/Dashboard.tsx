@@ -17,6 +17,7 @@ import {
   ComposedChart,
   Area,
   LabelList,
+  Treemap,
 } from "recharts";
 import {
   TrendingUp,
@@ -786,207 +787,6 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Cost by Warehouse and Category - Two columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cost by Warehouse */}
-        <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">Cost by Warehouse</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={costByWarehouse?.slice(0, 8)} layout="vertical">
-              <CartesianGrid {...CHART_STYLES.grid} />
-              <XAxis
-                type="number"
-                tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
-              />
-              <YAxis
-                dataKey="value"
-                type="category"
-                width={100}
-                tick={CHART_STYLES.axis}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(value as number)}
-                contentStyle={CHART_STYLES.tooltip.contentStyle}
-                labelStyle={CHART_STYLES.tooltip.labelStyle}
-              />
-              <Bar
-                dataKey="totalCost"
-                name="Total Cost"
-                fill={PROCEED_COLORS.primary}
-              >
-                <LabelList
-                  position="right"
-                  content={(props) => {
-                    const { x, y, height, value } = props;
-                    const totalWHCost =
-                      costByWarehouse?.reduce(
-                        (sum, item) => sum + item.totalCost,
-                        0,
-                      ) || 0;
-                    const percentage =
-                      totalWHCost > 0
-                        ? ((value / totalWHCost) * 100).toFixed(1)
-                        : "0";
-                    return (
-                      <g>
-                        <text
-                          x={x + 5}
-                          y={y + height / 2 - 5}
-                          fill="#333"
-                          textAnchor="start"
-                          style={{ fontWeight: "bold", fontSize: 10 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + 5}
-                          y={y + height / 2 + 5}
-                          fill="#666"
-                          textAnchor="start"
-                          style={{ fontSize: 9 }}
-                        >
-                          ({percentage}%)
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Cost by Category */}
-        <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">Cost by TCO Category</h3>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={costByCategory?.slice(0, 8)}>
-              <CartesianGrid {...CHART_STYLES.grid} />
-              <XAxis
-                dataKey="value"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={CHART_STYLES.axisLabel}
-              />
-              <YAxis
-                tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(value as number)}
-                contentStyle={CHART_STYLES.tooltip.contentStyle}
-                labelStyle={CHART_STYLES.tooltip.labelStyle}
-              />
-              <Bar
-                dataKey="totalCost"
-                name="Total Cost"
-                fill={PROCEED_COLORS.accent}
-              >
-                <LabelList
-                  position="top"
-                  content={(props) => {
-                    const { x, y, width, value } = props;
-                    const totalCatCost =
-                      costByCategory?.reduce(
-                        (sum, item) => sum + item.totalCost,
-                        0,
-                      ) || 0;
-                    const percentage =
-                      totalCatCost > 0
-                        ? ((value / totalCatCost) * 100).toFixed(1)
-                        : "0";
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 10 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 9 }}
-                        >
-                          {percentage}%
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Cost Distribution Pie Chart - Full Width for better visibility */}
-      <div className="chart-container">
-        <h3 className="text-lg font-semibold mb-4">Cost Distribution</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={[
-                {
-                  name: "Warehouse",
-                  value: costByQuarter?.[0]?.warehouseCost || 0,
-                },
-                {
-                  name: "Transportation",
-                  value: costByQuarter?.[0]?.transportationCost || 0,
-                },
-                {
-                  name: "Distribution",
-                  value: costByQuarter?.[0]?.distributionCost || 0,
-                },
-                {
-                  name: "Last Mile",
-                  value: costByQuarter?.[0]?.lastMileCost || 0,
-                },
-              ]}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={(props) => {
-                const { name, percent } = props;
-                return (
-                  <text
-                    x={props.x}
-                    y={props.y}
-                    fill={props.fill}
-                    textAnchor={props.textAnchor}
-                    dominantBaseline="central"
-                    style={{ fontWeight: "bold", fontSize: 12 }}
-                  >
-                    {`${name}: ${formatPercentage(percent)}`}
-                  </text>
-                );
-              }}
-              outerRadius={100}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              <Cell fill={PROCEED_COLORS.primary} />
-              <Cell fill={PROCEED_COLORS.secondary} />
-              <Cell fill={PROCEED_COLORS.accent} />
-              <Cell fill={PROCEED_COLORS.blue} />
-            </Pie>
-            <Tooltip
-              formatter={(value) => formatCurrency(value as number)}
-              contentStyle={CHART_STYLES.tooltip.contentStyle}
-              labelStyle={CHART_STYLES.tooltip.labelStyle}
-            />
-            <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
 
       {/* NEW VISUALIZATIONS: Department Cost Analysis Section */}
 
@@ -1176,9 +976,7 @@ export default function Dashboard() {
 
         {/* 3. Cost Efficiency Metrics - Third Visualization */}
         <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">
-            Department Cost Trend
-          </h3>
+          <h3 className="text-lg font-semibold mb-4">Department Cost Trend</h3>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
               data={costByQuarter?.map((q) => ({
@@ -1385,6 +1183,213 @@ export default function Dashboard() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* TCO Model Categories Treemap - Full Width */}
+      <div className="chart-container">
+        <h3 className="text-lg font-semibold mb-4">TCO Model Categories</h3>
+        <ResponsiveContainer width="100%" height={600}>
+          <Treemap
+            data={(() => {
+              // Aggregate costs by TCO Model Categories
+              const tcoCategories: { [key: string]: number } = {};
+
+              metrics?.topExpenses?.forEach((item: any) => {
+                const category = item.tcoModelCategories || "Uncategorized";
+                const cost = parseFloat(item.totalIncurredCost) || 0;
+
+                if (tcoCategories[category]) {
+                  tcoCategories[category] += cost;
+                } else {
+                  tcoCategories[category] = cost;
+                }
+              });
+
+              // Calculate total for percentages
+              const total = Object.values(tcoCategories).reduce(
+                (sum, val) => sum + val,
+                0,
+              );
+
+              // Convert to treemap data format and sort by value
+              const treeData = Object.entries(tcoCategories)
+                .map(([name, value], index) => ({
+                  name,
+                  value,
+                  fill: getBrandColor(index),
+                  percentage:
+                    total > 0 ? ((value / total) * 100).toFixed(1) : "0",
+                }))
+                .sort((a, b) => b.value - a.value);
+
+              return treeData;
+            })()}
+            dataKey="value"
+            aspectRatio={4 / 3}
+            stroke="#fff"
+            strokeWidth={3}
+            content={({
+              x,
+              y,
+              width,
+              height,
+              value,
+              name,
+              fill,
+              percentage,
+            }) => {
+              // Only render if the box is large enough
+              if (width < 50 || height < 40) return null;
+
+              // Calculate font sizes based on box dimensions
+              const nameFontSize = Math.min(Math.max(14, width / 8), 20);
+              const valueFontSize = Math.min(Math.max(12, width / 10), 16);
+              const percentFontSize = Math.min(Math.max(10, width / 12), 14);
+
+              // Determine text color based on background
+              const textColor = "#fff";
+
+              return (
+                <g>
+                  <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    style={{
+                      fill: fill,
+                      stroke: "#fff",
+                      strokeWidth: 3,
+                      strokeOpacity: 1,
+                    }}
+                  />
+                  {/* Only show text if box is large enough */}
+                  {width > 80 && height > 60 && (
+                    <>
+                      {/* Category Name */}
+                      <text
+                        x={x + width / 2}
+                        y={y + height / 2 - 15}
+                        textAnchor="middle"
+                        fill={textColor}
+                        fontSize={nameFontSize}
+                        fontWeight="bold"
+                        fontFamily="system-ui, -apple-system, sans-serif"
+                        stroke="rgba(0,0,0,0.5)"
+                        strokeWidth="0.5"
+                        paintOrder="stroke"
+                      >
+                        {name}
+                      </text>
+                      {/* Value */}
+                      <text
+                        x={x + width / 2}
+                        y={y + height / 2 + 5}
+                        textAnchor="middle"
+                        fill={textColor}
+                        fontSize={valueFontSize}
+                        fontWeight="600"
+                        fontFamily="system-ui, -apple-system, sans-serif"
+                        stroke="rgba(0,0,0,0.5)"
+                        strokeWidth="0.3"
+                        paintOrder="stroke"
+                      >
+                        {formatCurrency(value, true)}
+                      </text>
+                      {/* Percentage */}
+                      <text
+                        x={x + width / 2}
+                        y={y + height / 2 + 22}
+                        textAnchor="middle"
+                        fill={textColor}
+                        fontSize={percentFontSize}
+                        fontWeight="500"
+                        fontFamily="system-ui, -apple-system, sans-serif"
+                        stroke="rgba(0,0,0,0.5)"
+                        strokeWidth="0.3"
+                        paintOrder="stroke"
+                      >
+                        ({percentage}%)
+                      </text>
+                    </>
+                  )}
+                </g>
+              );
+            }}
+          >
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  // Create a contrasting background color
+                  const bgColor = "rgba(255, 255, 255, 0.98)";
+                  const borderColor = data.fill || "#333";
+
+                  return (
+                    <div
+                      style={{
+                        backgroundColor: bgColor,
+                        border: `2px solid ${borderColor}`,
+                        borderRadius: "8px",
+                        padding: "12px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        minWidth: "180px",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontWeight: "600",
+                          fontSize: "14px",
+                          color: "#333",
+                          marginBottom: "8px",
+                          borderBottom: `1px solid ${borderColor}`,
+                          paddingBottom: "4px",
+                        }}
+                      >
+                        {data.name}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          color: "#555",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <strong>Value:</strong> {formatCurrency(data.value)}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          color: "#555",
+                          marginBottom: "0",
+                        }}
+                      >
+                        <strong>Share:</strong> {data.percentage}%
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+              wrapperStyle={{ zIndex: 1000 }}
+            />
+          </Treemap>
+        </ResponsiveContainer>
+        <div className="text-sm text-gray-600 mt-2 text-center">
+          Total TCO Categories:{" "}
+          {
+            Object.keys(
+              (() => {
+                const categories: { [key: string]: boolean } = {};
+                metrics?.topExpenses?.forEach((item: any) => {
+                  categories[item.tcoModelCategories || "Uncategorized"] = true;
+                });
+                return categories;
+              })(),
+            ).length
+          }{" "}
+          | Total Items Analyzed: {metrics?.topExpenses?.length || 0}
         </div>
       </div>
 
