@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   BarChart,
@@ -14,17 +14,19 @@ import {
   Tooltip,
   ResponsiveContainer,
   LabelList,
+  Legend,
 } from 'recharts';
 import { X, Settings, Table, Loader2, GripVertical } from 'lucide-react';
 import { GridLayoutControl } from '../modules/grid-layout';
 import { formatCurrency } from '../utils/formatting';
-import { fetchPlaygroundData } from '../api/playground';
+import { fetchPlaygroundData, fetchMultiMeasureData } from '../api/playground';
 import {
   VisualizationConfig,
   DIMENSIONS,
   MEASURES,
   CHART_TYPES,
 } from '../pages/CostPlayground';
+import MultiSelect from './MultiSelect';
 
 interface PlaygroundVisualizationProps {
   config: VisualizationConfig;
@@ -68,16 +70,20 @@ const CHART_STYLES = {
   },
 };
 
-// Custom tooltip component
+// Custom tooltip component for multiple measures
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const measure = MEASURES.find(m => m.value === payload[0].dataKey);
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="text-sm font-semibold text-gray-900">{label}</p>
-        <p className="text-sm text-gray-600">
-          {measure?.label}: {formatCurrency(payload[0].value)}
-        </p>
+        <p className="text-sm font-semibold text-gray-900 mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => {
+          const measure = MEASURES.find(m => m.value === entry.dataKey);
+          return (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              <span className="font-medium">{measure?.label || entry.dataKey}:</span> {formatCurrency(entry.value)}
+            </p>
+          );
+        })}
       </div>
     );
   }
@@ -131,24 +137,63 @@ export default function PlaygroundVisualization({
   const [showSettings, setShowSettings] = useState(false);
   const [showTable, setShowTable] = useState(config.showTable);
 
-  // Fetch data based on configuration
+  // Ensure backward compatibility - convert old single measure to measures array
+  const measures = useMemo(() => {
+    if (config.measures && config.measures.length > 0) {
+      return config.measures;
+    }
+    if (config.measure) {
+      return [config.measure];
+    }
+    return [MEASURES[0].value];
+  }, [config.measures, config.measure]);
+
+  // Fetch data based on configuration - use multi-measure API if multiple measures
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['playground', config.dimension, config.measure],
-    queryFn: () => fetchPlaygroundData(config.dimension, config.measure),
-    enabled: !!config.dimension && !!config.measure,
+    queryKey: ['playground', config.dimension, measures],
+    queryFn: () => {
+      if (measures.length === 1) {
+        // Use single measure API for backward compatibility
+        return fetchPlaygroundData(config.dimension, measures[0]);
+      } else {
+        // Use multi-measure API
+        return fetchMultiMeasureData(config.dimension, measures);
+      }
+    },
+    enabled: !!config.dimension && measures.length > 0,
   });
 
   // Get labels for display
   const dimensionLabel = DIMENSIONS.find(d => d.value === config.dimension)?.label || config.dimension;
-  const measureLabel = MEASURES.find(m => m.value === config.measure)?.label || config.measure;
+  const measureLabels = measures.map(m =>
+    MEASURES.find(measure => measure.value === m)?.label || m
+  );
   const chartTypeLabel = CHART_TYPES.find(c => c.value === config.chartType)?.label || config.chartType;
 
   // Prepare data for charts
-  const chartData = data?.data || [];
+  const chartData = useMemo(() => {
+    if (!data?.data) return [];
 
-  // Calculate total for percentage calculations
-  const calculateTotal = () => {
-    return chartData.reduce((sum: number, r: any) => sum + r.value, 0);
+    // For backward compatibility, ensure single measure data has proper structure
+    if (measures.length === 1 && data.data[0]?.value !== undefined) {
+      return data.data.map((item: any) => ({
+        ...item,
+        [measures[0]]: item.value,
+      }));
+    }
+
+    return data.data;
+  }, [data, measures]);
+
+  // Calculate totals for percentage calculations
+  const calculateTotals = () => {
+    const totals: Record<string, number> = {};
+    measures.forEach(measure => {
+      totals[measure] = chartData.reduce((sum: number, r: any) =>
+        sum + (r[measure] || 0), 0
+      );
+    });
+    return totals;
   };
 
   // Render the appropriate chart based on type
@@ -161,7 +206,7 @@ export default function PlaygroundVisualization({
       );
     }
 
-    const total = calculateTotal();
+    const totals = calculateTotals();
 
     switch (config.chartType) {
       case 'bar':
@@ -181,45 +226,67 @@ export default function PlaygroundVisualization({
                 tickFormatter={(value) => formatCurrency(value, true)}
               />
               <Tooltip content={<CustomTooltip />} {...CHART_STYLES.tooltip} />
-              <Bar dataKey="value" name={measureLabel}>
-                {chartData.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={BRAND_PALETTE[index % BRAND_PALETTE.length]} />
-                ))}
-                <LabelList
-                  dataKey="value"
-                  position="top"
-                  formatter={(value: number) => renderValueWithPercentage(value, total)}
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 'bold',
-                    fill: '#2d2d2d'
-                  }}
-                />
-              </Bar>
+              {measures.length > 1 && <Legend />}
+              {measures.map((measure, measureIndex) => {
+                const measureLabel = MEASURES.find(m => m.value === measure)?.label || measure;
+                const color = BRAND_PALETTE[measureIndex % BRAND_PALETTE.length];
+                const total = totals[measure];
+
+                return (
+                  <Bar key={measure} dataKey={measure} name={measureLabel} fill={color}>
+                    {measures.length === 1 && (
+                      <LabelList
+                        dataKey={measure}
+                        position="top"
+                        formatter={(value: number) => renderValueWithPercentage(value, total)}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                          fill: '#2d2d2d'
+                        }}
+                      />
+                    )}
+                  </Bar>
+                );
+              })}
             </BarChart>
           </ResponsiveContainer>
         );
 
       case 'pie':
+        // For pie charts, use first measure or sum all measures
+        const pieDataKey = measures[0];
+        const pieData = measures.length === 1 ? chartData : chartData.map((item: any) => ({
+          ...item,
+          total: measures.reduce((sum, m) => sum + (item[m] || 0), 0),
+        }));
+        const dataKey = measures.length === 1 ? pieDataKey : 'total';
+
         return (
           <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
-                data={chartData}
+                data={pieData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
                 label={renderCustomizedPieLabel}
                 outerRadius={120}
                 fill="#8884d8"
-                dataKey="value"
+                dataKey={dataKey}
                 nameKey="name"
               >
-                {chartData.map((entry: any, index: number) => (
+                {pieData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={BRAND_PALETTE[index % BRAND_PALETTE.length]} />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} {...CHART_STYLES.tooltip} />
+              {measures.length > 1 && (
+                <Legend
+                  formatter={() => 'Total (Sum of all measures)'}
+                  wrapperStyle={{ paddingTop: 20 }}
+                />
+              )}
             </PieChart>
           </ResponsiveContainer>
         );
@@ -241,27 +308,39 @@ export default function PlaygroundVisualization({
                 tickFormatter={(value) => formatCurrency(value, true)}
               />
               <Tooltip content={<CustomTooltip />} {...CHART_STYLES.tooltip} />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={BRAND_PALETTE[0]}
-                strokeWidth={2}
-                dot={{ fill: BRAND_PALETTE[0], r: 4 }}
-                activeDot={{ r: 6 }}
-                name={measureLabel}
-              >
-                <LabelList
-                  dataKey="value"
-                  position="top"
-                  offset={10}
-                  formatter={(value: number) => renderValueWithPercentage(value, total)}
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 'bold',
-                    fill: '#2d2d2d'
-                  }}
-                />
-              </Line>
+              {measures.length > 1 && <Legend />}
+              {measures.map((measure, measureIndex) => {
+                const measureLabel = MEASURES.find(m => m.value === measure)?.label || measure;
+                const color = BRAND_PALETTE[measureIndex % BRAND_PALETTE.length];
+                const total = totals[measure];
+
+                return (
+                  <Line
+                    key={measure}
+                    type="monotone"
+                    dataKey={measure}
+                    stroke={color}
+                    strokeWidth={2}
+                    dot={{ fill: color, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name={measureLabel}
+                  >
+                    {measures.length === 1 && (
+                      <LabelList
+                        dataKey={measure}
+                        position="top"
+                        offset={10}
+                        formatter={(value: number) => renderValueWithPercentage(value, total)}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 'bold',
+                          fill: '#2d2d2d'
+                        }}
+                      />
+                    )}
+                  </Line>
+                );
+              })}
             </LineChart>
           </ResponsiveContainer>
         );
@@ -278,10 +357,10 @@ export default function PlaygroundVisualization({
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900">
-              {dimensionLabel} by {measureLabel}
+              {dimensionLabel} by {measureLabels.length > 1 ? 'Multiple Measures' : measureLabels[0]}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              {chartTypeLabel} Visualization
+              {chartTypeLabel} Visualization{measures.length > 1 && ` (${measures.length} measures)`}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -353,22 +432,19 @@ export default function PlaygroundVisualization({
                 </select>
               </div>
 
-              {/* Measure Selector */}
+              {/* Measure Selector - MultiSelect */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Measure
+                  Measures (Max 4)
                 </label>
-                <select
-                  value={config.measure}
-                  onChange={(e) => onUpdate({ measure: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9e1f63] focus:border-transparent"
-                >
-                  {MEASURES.map(measure => (
-                    <option key={measure.value} value={measure.value}>
-                      {measure.label}
-                    </option>
-                  ))}
-                </select>
+                <MultiSelect
+                  options={MEASURES}
+                  value={measures}
+                  onChange={(newMeasures) => onUpdate({ measures: newMeasures })}
+                  placeholder="Select measures..."
+                  maxItems={4}
+                  className="w-full"
+                />
               </div>
 
               {/* Chart Type Selector */}
@@ -441,36 +517,51 @@ export default function PlaygroundVisualization({
                     <th className="medium-column">
                       {dimensionLabel}
                     </th>
-                    <th className="text-right">
-                      {measureLabel}
-                    </th>
-                    <th className="narrow-column text-right">
-                      Percentage
-                    </th>
+                    {measures.map((measure) => {
+                      const label = MEASURES.find(m => m.value === measure)?.label || measure;
+                      return (
+                        <Fragment key={measure}>
+                          <th className="text-right">
+                            {label}
+                          </th>
+                          <th className="narrow-column text-right">
+                            %
+                          </th>
+                        </Fragment>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
-                    const total = chartData.reduce((sum: number, r: any) => sum + r.value, 0);
+                    const totals = calculateTotals();
 
                     return chartData.map((row: any, index: number) => {
-                      const percentage = (row.value / total) * 100;
-
                       return (
                         <tr key={index}>
                           <td className="medium-column font-medium">
                             {row.name}
                           </td>
-                          <td className="text-right font-bold">
-                            {formatCurrency(row.value)}
-                          </td>
-                          <td className={`narrow-column text-right font-semibold ${
-                            percentage > 20 ? 'text-red-600' :
-                            percentage > 10 ? 'text-orange-600' :
-                            'text-gray-600'
-                          }`}>
-                            {percentage.toFixed(1)}%
-                          </td>
+                          {measures.map((measure) => {
+                            const value = row[measure] || 0;
+                            const total = totals[measure];
+                            const percentage = total > 0 ? (value / total) * 100 : 0;
+
+                            return (
+                              <Fragment key={measure}>
+                                <td className="text-right font-bold">
+                                  {formatCurrency(value)}
+                                </td>
+                                <td className={`narrow-column text-right font-semibold ${
+                                  percentage > 20 ? 'text-red-600' :
+                                  percentage > 10 ? 'text-orange-600' :
+                                  'text-gray-600'
+                                }`}>
+                                  {percentage.toFixed(1)}%
+                                </td>
+                              </Fragment>
+                            );
+                          })}
                         </tr>
                       );
                     });
@@ -479,12 +570,19 @@ export default function PlaygroundVisualization({
                 <tfoot>
                   <tr className="bg-gray-100">
                     <td className="font-bold text-gray-900">Total</td>
-                    <td className="font-bold text-gray-900 text-right">
-                      {formatCurrency(chartData.reduce((sum: number, r: any) => sum + r.value, 0))}
-                    </td>
-                    <td className="font-bold text-gray-900 text-right">
-                      100.0%
-                    </td>
+                    {measures.map((measure) => {
+                      const total = calculateTotals()[measure];
+                      return (
+                        <Fragment key={measure}>
+                          <td className="font-bold text-gray-900 text-right">
+                            {formatCurrency(total)}
+                          </td>
+                          <td className="font-bold text-gray-900 text-right">
+                            100.0%
+                          </td>
+                        </Fragment>
+                      );
+                    })}
                   </tr>
                 </tfoot>
               </table>

@@ -43,7 +43,8 @@ export const CHART_TYPES = [
 export interface VisualizationConfig {
   id: string;
   dimension: string;
-  measure: string;
+  measure?: string; // Keep for backward compatibility
+  measures: string[]; // New: support multiple measures
   chartType: 'bar' | 'pie' | 'line';
   showTable: boolean;
   gridWidth: GridWidth;
@@ -56,7 +57,7 @@ export default function CostPlayground() {
     const newVisualization: VisualizationConfig = {
       id: `viz-${Date.now()}`,
       dimension: DIMENSIONS[0].value,
-      measure: MEASURES[0].value,
+      measures: [MEASURES[0].value], // Initialize with single measure
       chartType: 'bar',
       showTable: true,
       gridWidth: visualizations.length === 0 ? 1 : 2, // Default to half width when multiple

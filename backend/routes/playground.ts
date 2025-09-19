@@ -31,6 +31,146 @@ export function playgroundRoutes(): Router {
   const router = Router();
 
   /**
+   * Get aggregated data for multiple measures
+   * Query params:
+   * - dimension: field to group by
+   * - measures: comma-separated list of measures
+   */
+  router.get('/aggregate-multi', async (req: Request, res: Response) => {
+    try {
+      const { dimension, measures, ...filters } = req.query;
+
+      // Validate required parameters
+      if (!dimension || !measures) {
+        return res.status(400).json({
+          success: false,
+          error: 'Both dimension and measures parameters are required',
+        });
+      }
+
+      // Parse measures from comma-separated string
+      const measuresList = (measures as string).split(',').map(m => m.trim());
+
+      // Validate dimension
+      if (!VALID_DIMENSIONS.includes(dimension as string)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid dimension. Valid dimensions are: ${VALID_DIMENSIONS.join(', ')}`,
+        });
+      }
+
+      // Validate all measures
+      for (const measure of measuresList) {
+        if (!VALID_MEASURES.includes(measure)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid measure: ${measure}. Valid measures are: ${VALID_MEASURES.join(', ')}`,
+          });
+        }
+      }
+
+      // Limit to 4 measures for readability
+      if (measuresList.length > 4) {
+        return res.status(400).json({
+          success: false,
+          error: 'Maximum 4 measures allowed per visualization',
+        });
+      }
+
+      // Initialize database
+      const db = new DatabaseManager();
+      await db.initialize({});
+
+      // Build WHERE clause from filters
+      const whereClauses: string[] = [];
+      const params: any[] = [];
+
+      if (filters.year) {
+        whereClauses.push('year = ?');
+        params.push(parseInt(filters.year as string));
+      }
+      if (filters.quarter) {
+        whereClauses.push('quarter = ?');
+        params.push(filters.quarter);
+      }
+      if (filters.warehouse) {
+        whereClauses.push('warehouse = ?');
+        params.push(filters.warehouse);
+      }
+      if (filters.type) {
+        whereClauses.push('type = ?');
+        params.push(filters.type);
+      }
+      if (filters.costType) {
+        whereClauses.push('cost_type = ?');
+        params.push(filters.costType);
+      }
+      if (filters.opexCapex) {
+        whereClauses.push('opex_capex = ?');
+        params.push(filters.opexCapex);
+      }
+
+      const whereClause = whereClauses.length > 0
+        ? `WHERE ${whereClauses.join(' AND ')}`
+        : '';
+
+      // Build dynamic SQL with multiple SUM aggregations
+      const measureSelects = measuresList.map(m => `SUM(${m}) as ${m}`).join(', ');
+
+      const query = `
+        SELECT
+          ${dimension} as name,
+          ${measureSelects}
+        FROM cost_data
+        ${whereClause}
+        GROUP BY ${dimension}
+        HAVING ${dimension} IS NOT NULL AND ${dimension} != ''
+        ORDER BY ${measuresList[0]} DESC
+      `;
+
+      console.log('Multi-measure query:', query);
+      console.log('Query params:', params);
+
+      // Execute the query
+      const data = await db.executeQuery(query, params);
+
+      // Transform data for frontend - structure with measure keys
+      const transformedData = data.map((row: any) => {
+        const result: any = {
+          name: row.name || 'Unknown',
+        };
+
+        // Add each measure value
+        measuresList.forEach(measure => {
+          result[measure] = parseFloat(row[measure]) || 0;
+        });
+
+        return result;
+      });
+
+      // Filter out rows where all measures are zero
+      const filteredData = transformedData.filter((item: any) => {
+        return measuresList.some(measure => item[measure] > 0);
+      });
+
+      res.json({
+        success: true,
+        data: filteredData,
+        dimension: dimension as string,
+        measures: measuresList,
+        totalRows: filteredData.length,
+      });
+
+    } catch (error) {
+      console.error('Error in multi-measure aggregate:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch multi-measure aggregated data',
+      });
+    }
+  });
+
+  /**
    * Get aggregated data for playground visualization
    * Query params:
    * - dimension: field to group by (e.g., 'warehouse', 'type', 'year')
