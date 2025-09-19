@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Comparison from './pages/Comparison';
 import Upload from './pages/Upload';
 import Analysis from './pages/Analysis';
+import CostPlayground from './pages/CostPlayground';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/comparison" element={<Comparison />} />
         <Route path="/analysis" element={<Analysis />} />
+        <Route path="/playground" element={<CostPlayground />} />
         <Route path="/upload" element={<Upload />} />
       </Routes>
     </Layout>

@@ -6,7 +6,8 @@ import {
   TrendingUp,
   BarChart3,
   Settings,
-  FileText
+  FileText,
+  Sparkles
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -20,6 +21,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Analysis', href: '/analysis', icon: BarChart3 },
     { name: 'Comparison', href: '/comparison', icon: TrendingUp },
+    { name: 'Cost Playground', href: '/playground', icon: Sparkles },
     { name: 'Upload Data', href: '/upload', icon: UploadIcon },
   ];
 
@@ -27,7 +29,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className="max-w-[1920px] mx-auto px-6 sm:px-8 lg:px-10 xl:px-12">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -49,7 +51,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className="max-w-[1920px] mx-auto px-6 sm:px-8 lg:px-10 xl:px-12">
           <div className="flex space-x-8">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -78,7 +80,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main className="flex-1">
         <div className="py-6">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="max-w-[1920px] mx-auto px-6 sm:px-8 lg:px-10 xl:px-12">
             {children}
           </div>
         </div>
@@ -86,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-4">
+        <div className="max-w-[1800px] mx-auto px-6 sm:px-8 lg:px-10 xl:px-12 py-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-500">
               © 2025 PROCEED. All rights reserved.

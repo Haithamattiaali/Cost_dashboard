@@ -71,8 +71,10 @@ export class DatabaseManager {
         type TEXT,
         gl_account_no TEXT,
         gl_account_name TEXT,
+        gl_accounts_group TEXT,
         cost_type TEXT,
         tco_model_categories TEXT,
+        main_categories TEXT,
         opex_capex TEXT,
         total_incurred_cost REAL,
         share_wh REAL,
@@ -162,7 +164,8 @@ export class DatabaseManager {
       const sql = `
         INSERT INTO cost_data (
           year, quarter, warehouse, type, gl_account_no, gl_account_name,
-          cost_type, tco_model_categories, opex_capex, total_incurred_cost,
+          gl_accounts_group, cost_type, tco_model_categories, main_categories,
+          opex_capex, total_incurred_cost,
           share_wh, share_trs, share_distribution, share_last_mile,
           share_proceed_3pl_wh, share_proceed_3pl_trs,
           value_wh, value_trs, value_distribution, value_last_mile,
@@ -170,15 +173,15 @@ export class DatabaseManager {
           total_pharmacy_dist_lm, total_proceed_3pl,
           current_expected_cost, total_distribution_cost
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `;
 
       this.db.run(sql, [
         data.year, data.quarter, data.warehouse, data.type,
-        data.glAccountNo, data.glAccountName, data.costType,
-        data.tcoModelCategories, data.opexCapex, data.totalIncurredCost,
+        data.glAccountNo, data.glAccountName, data.glAccountsGroup, data.costType,
+        data.tcoModelCategories, data.mainCategories, data.opexCapex, data.totalIncurredCost,
         data.shareWH, data.shareTRS, data.shareDistribution, data.shareLastMile,
         data.shareProceed3PLWH, data.shareProceed3PLTRS,
         data.valueWH, data.valueTRS, data.valueDistribution, data.valueLastMile,
@@ -208,7 +211,8 @@ export class DatabaseManager {
       const sql = `
         INSERT INTO cost_data (
           year, quarter, warehouse, type, gl_account_no, gl_account_name,
-          cost_type, tco_model_categories, opex_capex, total_incurred_cost,
+          gl_accounts_group, cost_type, tco_model_categories, main_categories,
+          opex_capex, total_incurred_cost,
           share_wh, share_trs, share_distribution, share_last_mile,
           share_proceed_3pl_wh, share_proceed_3pl_trs,
           value_wh, value_trs, value_distribution, value_last_mile,
@@ -216,7 +220,7 @@ export class DatabaseManager {
           total_pharmacy_dist_lm, total_proceed_3pl,
           current_expected_cost, total_distribution_cost
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `;
@@ -232,8 +236,8 @@ export class DatabaseManager {
         for (const row of data) {
           stmt.run([
             row.year, row.quarter, row.warehouse, row.type,
-            row.glAccountNo, row.glAccountName, row.costType,
-            row.tcoModelCategories, row.opexCapex, row.totalIncurredCost,
+            row.glAccountNo, row.glAccountName, row.glAccountsGroup, row.costType,
+            row.tcoModelCategories, row.mainCategories, row.opexCapex, row.totalIncurredCost,
             row.shareWH, row.shareTRS, row.shareDistribution, row.shareLastMile,
             row.shareProceed3PLWH, row.shareProceed3PLTRS,
             row.valueWH, row.valueTRS, row.valueDistribution, row.valueLastMile,
@@ -361,6 +365,28 @@ export class DatabaseManager {
     });
   }
 
+  /**
+   * Execute a custom SQL query with parameters
+   * Used for flexible aggregations in playground
+   */
+  async executeQuery(query: string, params: any[] = []): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+
+      this.db.all(query, params, (err, rows) => {
+        if (err) {
+          console.error('Query execution error:', err);
+          reject(err);
+        } else {
+          resolve(rows || []);
+        }
+      });
+    });
+  }
+
   private mapRowToModel(row: any): CostDataRow {
     return {
       year: row.year,
@@ -369,8 +395,10 @@ export class DatabaseManager {
       type: row.type,
       glAccountNo: row.gl_account_no,
       glAccountName: row.gl_account_name,
+      glAccountsGroup: row.gl_accounts_group || '',
       costType: row.cost_type,
       tcoModelCategories: row.tco_model_categories,
+      mainCategories: row.main_categories || '',
       opexCapex: row.opex_capex,
       totalIncurredCost: row.total_incurred_cost,
       shareWH: row.share_wh,

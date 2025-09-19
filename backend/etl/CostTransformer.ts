@@ -156,7 +156,7 @@ export class CostTransformer {
       costByCategory: this.aggregateByDimension('tcoModelCategories').slice(0, 10),
       costByType: this.aggregateByDimension('costType'),
       costByGLAccount,
-      topExpenses: topExpenses.slice(0, 10), // Only limit topExpenses for the table
+      topExpenses: topExpenses, // Return ALL expense data for the detailed table
     };
   }
 

@@ -10,6 +10,7 @@ import { costRoutes } from './routes/costs';
 import { uploadRoutes } from './routes/upload';
 import { comparisonRoutes } from './routes/comparisons';
 import { filterRoutes } from './routes/filters';
+import { playgroundRoutes } from './routes/playground';
 
 // Load configuration directly
 const configPath = path.join(__dirname, '../config.json');
@@ -80,6 +81,7 @@ async function initializeServer() {
   app.use('/api/costs', costRoutes());
   app.use('/api/comparisons', comparisonRoutes());
   app.use('/api/filters', filterRoutes());
+  app.use('/api/playground', playgroundRoutes());
 
   // Health check
   app.get('/api/health', (req, res) => {

@@ -937,7 +937,7 @@ export default function Dashboard() {
                           textAnchor="middle"
                           style={{ fontSize: 8 }}
                         >
-                          ({percentage}%)
+                          ({percentage || '0'}%)
                         </text>
                       </g>
                     );
@@ -982,7 +982,7 @@ export default function Dashboard() {
                           textAnchor="middle"
                           style={{ fontSize: 8 }}
                         >
-                          ({percentage}%)
+                          ({percentage || '0'}%)
                         </text>
                       </g>
                     );
@@ -1027,7 +1027,7 @@ export default function Dashboard() {
                           textAnchor="middle"
                           style={{ fontSize: 8 }}
                         >
-                          ({percentage}%)
+                          ({percentage || '0'}%)
                         </text>
                       </g>
                     );
@@ -1072,7 +1072,7 @@ export default function Dashboard() {
                           textAnchor="middle"
                           style={{ fontSize: 8 }}
                         >
-                          ({percentage}%)
+                          ({percentage || '0'}%)
                         </text>
                       </g>
                     );
@@ -1126,7 +1126,7 @@ export default function Dashboard() {
             dataKey="value"
             aspectRatio={4 / 3}
             stroke="#fff"
-            strokeWidth={3}
+            strokeWidth={2}
             content={({
               x,
               y,
@@ -1137,81 +1137,147 @@ export default function Dashboard() {
               fill,
               percentage,
             }) => {
-              // Only render if the box is large enough
-              if (width < 50 || height < 40) return null;
+              // Always render the rectangle
+              const rect = (
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  style={{
+                    fill: fill,
+                    stroke: "#fff",
+                    strokeWidth: 2,
+                    strokeOpacity: 1,
+                  }}
+                />
+              );
 
-              // Calculate font sizes based on box dimensions
-              const nameFontSize = Math.min(Math.max(14, width / 8), 20);
-              const valueFontSize = Math.min(Math.max(12, width / 10), 16);
-              const percentFontSize = Math.min(Math.max(10, width / 12), 14);
+              // Calculate available space with padding
+              const padding = 5;
+              const availableWidth = width - (padding * 2);
+              const availableHeight = height - (padding * 2);
 
-              // Determine text color based on background
+              // Determine box size category
+              const isTinyBox = width < 60 || height < 50;
+              const isSmallBox = width < 100 || height < 80;
+              const isMediumBox = width < 150 || height < 120;
+
+              // Don't render text if box is too tiny
+              if (isTinyBox) {
+                return <g>{rect}</g>;
+              }
+
+              // Calculate optimal font sizes based on available space
+              const maxNameSize = Math.min(availableWidth / 6, availableHeight / 4, 16);
+              const maxValueSize = Math.min(availableWidth / 8, availableHeight / 5, 14);
+              const maxPercentSize = Math.min(availableWidth / 10, availableHeight / 6, 11);
+
+              const nameFontSize = Math.max(8, maxNameSize);
+              const valueFontSize = Math.max(7, maxValueSize);
+              const percentFontSize = Math.max(6, maxPercentSize);
+
+              // Text color with better contrast
               const textColor = "#fff";
+
+              // Split long text into multiple lines if needed
+              const wrapText = (text: string | undefined, maxChars: number) => {
+                if (!text) return [''];
+                if (text.length <= maxChars) return [text];
+
+                const words = text.split(' ');
+                const lines: string[] = [];
+                let currentLine = '';
+
+                words.forEach(word => {
+                  if ((currentLine + word).length <= maxChars) {
+                    currentLine += (currentLine ? ' ' : '') + word;
+                  } else {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                  }
+                });
+                if (currentLine) lines.push(currentLine);
+
+                return lines.length > 2 ? [text.substring(0, maxChars - 3) + '...'] : lines;
+              };
+
+              // Calculate max characters based on width
+              const maxCharsPerLine = Math.floor(availableWidth / (nameFontSize * 0.6));
+              const displayName = name || 'Unknown';
+              const nameLines = wrapText(displayName, maxCharsPerLine);
+
+              // Determine what to show based on available space
+              const showValue = !isSmallBox || height > 60;
+              const showPercent = !isSmallBox || height > 70;
+
+              // Calculate vertical positions
+              const totalTextHeight = nameLines.length * nameFontSize +
+                                    (showValue ? valueFontSize + 5 : 0) +
+                                    (showPercent ? percentFontSize + 3 : 0);
+              const startY = y + (height - totalTextHeight) / 2;
 
               return (
                 <g>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={width}
-                    height={height}
-                    style={{
-                      fill: fill,
-                      stroke: "#fff",
-                      strokeWidth: 3,
-                      strokeOpacity: 1,
-                    }}
-                  />
-                  {/* Only show text if box is large enough */}
-                  {width > 80 && height > 60 && (
-                    <>
-                      {/* Category Name */}
+                  {rect}
+                  <clipPath id={`clip-${x}-${y}`}>
+                    <rect x={x + padding} y={y + padding} width={availableWidth} height={availableHeight} />
+                  </clipPath>
+                  <g clipPath={`url(#clip-${x}-${y})`}>
+                    {/* Category Name (possibly multi-line) */}
+                    {nameLines.map((line, index) => (
                       <text
+                        key={index}
                         x={x + width / 2}
-                        y={y + height / 2 - 15}
+                        y={startY + nameFontSize * (index + 0.8)}
                         textAnchor="middle"
                         fill={textColor}
                         fontSize={nameFontSize}
                         fontWeight="bold"
                         fontFamily="system-ui, -apple-system, sans-serif"
-                        stroke="rgba(0,0,0,0.5)"
-                        strokeWidth="0.5"
+                        stroke="rgba(0,0,0,0.4)"
+                        strokeWidth="0.3"
                         paintOrder="stroke"
                       >
-                        {name}
+                        {line}
                       </text>
-                      {/* Value */}
+                    ))}
+                    {/* Value */}
+                    {showValue && (
                       <text
                         x={x + width / 2}
-                        y={y + height / 2 + 5}
+                        y={startY + nameLines.length * nameFontSize + valueFontSize + 2}
                         textAnchor="middle"
                         fill={textColor}
                         fontSize={valueFontSize}
                         fontWeight="600"
                         fontFamily="system-ui, -apple-system, sans-serif"
-                        stroke="rgba(0,0,0,0.5)"
-                        strokeWidth="0.3"
+                        stroke="rgba(0,0,0,0.3)"
+                        strokeWidth="0.2"
                         paintOrder="stroke"
                       >
-                        {formatCurrency(value, true)}
+                        {formatCurrency(value || 0, true)}
                       </text>
-                      {/* Percentage */}
+                    )}
+                    {/* Percentage */}
+                    {showPercent && (
                       <text
                         x={x + width / 2}
-                        y={y + height / 2 + 22}
+                        y={startY + nameLines.length * nameFontSize +
+                           (showValue ? valueFontSize + 5 : 0) + percentFontSize + 2}
                         textAnchor="middle"
                         fill={textColor}
                         fontSize={percentFontSize}
                         fontWeight="500"
                         fontFamily="system-ui, -apple-system, sans-serif"
-                        stroke="rgba(0,0,0,0.5)"
-                        strokeWidth="0.3"
+                        stroke="rgba(0,0,0,0.3)"
+                        strokeWidth="0.2"
                         paintOrder="stroke"
                       >
-                        ({percentage}%)
+                        ({percentage || '0'}%)
                       </text>
-                    </>
-                  )}
+                    )}
+                  </g>
                 </g>
               );
             }}
@@ -1354,7 +1420,7 @@ export default function Dashboard() {
                         textAnchor="middle"
                         style={{ fontWeight: "bold", fontSize: 10 }}
                       >
-                        {formatCurrency(value, true)}
+                        {formatCurrency(value || 0, true)}
                       </text>
                       <text
                         x={x + width / 2}
@@ -1382,42 +1448,70 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Data Table */}
+      {/* GL Accounts Detailed View */}
       <div className="chart-container">
-        <h3 className="text-lg font-semibold mb-4">Top Expenses</h3>
-        <div className="overflow-x-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">GL Accounts Detailed View</h3>
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">Total Records:</span> {metrics?.topExpenses?.length || 0}
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-200">
           <table className="data-table">
             <thead>
               <tr>
-                <th>GL Account</th>
-                <th>Description</th>
+                <th>GL Account Name</th>
+                <th>GL No.</th>
+                <th>GL Group</th>
+                <th>Main Categories</th>
+                <th className="text-center">Year</th>
+                <th className="text-center">Qtr</th>
                 <th>Type</th>
-                <th>Category</th>
-                <th>Warehouse</th>
-                <th className="text-right">Amount</th>
+                <th>WH</th>
+                <th>Cost Type</th>
+                <th>TCO Categories</th>
+                <th className="text-center">OpEx/CapEx</th>
+                <th className="text-right">Total Cost</th>
               </tr>
             </thead>
             <tbody>
               {metrics?.topExpenses
-                ?.slice(0, 10)
-                .map((expense: any, index: number) => (
+                ?.map((expense: any, index: number) => (
                   <tr key={index}>
-                    <td className="font-mono text-sm">{expense.glAccountNo}</td>
-                    <td>{expense.glAccountName}</td>
-                    <td>
+                    <td className="medium-column" title={expense.glAccountName || '-'}>
+                      {expense.glAccountName || '-'}
+                    </td>
+                    <td className="narrow-column font-mono" title={expense.glAccountNo || '-'}>
+                      {expense.glAccountNo || '-'}
+                    </td>
+                    <td className="medium-column" title={expense.glAccountsGroup || '-'}>
+                      {expense.glAccountsGroup || '-'}
+                    </td>
+                    <td className="narrow-column" title={expense.mainCategories || '-'}>
+                      {expense.mainCategories || '-'}
+                    </td>
+                    <td className="text-center">{expense.year || '-'}</td>
+                    <td className="text-center uppercase">{expense.quarter || '-'}</td>
+                    <td className="narrow-column" title={expense.type || '-'}>{expense.type || '-'}</td>
+                    <td className="text-center" title={expense.warehouse || '-'}>{expense.warehouse || '-'}</td>
+                    <td className="narrow-column" title={expense.costType || '-'}>{expense.costType || '-'}</td>
+                    <td className="wide-column" title={expense.tcoModelCategories || '-'}>
+                      {expense.tcoModelCategories || '-'}
+                    </td>
+                    <td className="text-center">
                       <span
-                        className={`px-2 py-1 text-xs rounded ${
+                        className={`inline-block px-1 py-0 text-[0.65rem] font-medium rounded ${
                           expense.opexCapex === "OPEX"
                             ? "bg-blue-100 text-blue-800"
-                            : "bg-orange-100 text-orange-800"
+                            : expense.opexCapex === "CAPEX"
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {expense.opexCapex}
+                        {expense.opexCapex || '-'}
                       </span>
                     </td>
-                    <td>{expense.tcoModelCategories}</td>
-                    <td>{expense.warehouse}</td>
-                    <td className="text-right font-semibold">
+                    <td className="text-right font-semibold narrow-column">
                       {formatCurrency(expense.totalIncurredCost)}
                     </td>
                   </tr>

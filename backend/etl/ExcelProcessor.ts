@@ -9,8 +9,10 @@ export interface CostDataRow {
   type: string;
   glAccountNo: string;
   glAccountName: string;
+  glAccountsGroup: string;
   costType: string;
   tcoModelCategories: string;
+  mainCategories: string;
   opexCapex: string;
   totalIncurredCost: number;
   shareWH: number;
@@ -116,8 +118,10 @@ export class ExcelProcessor {
       type: String(row['Type'] || ''),
       glAccountNo: String(row['GL Account No.'] || ''),
       glAccountName: String(row['GL Account Name'] || ''),
+      glAccountsGroup: String(row['GL Accounts Group'] || ''),
       costType: String(row['Cost Type'] || ''),
       tcoModelCategories: String(row['TCO Model Categories'] || ''),
+      mainCategories: String(row['Main Categories'] || ''),
       opexCapex: String(row['OpEx /CapEx'] || ''), // Note: different spacing
       totalIncurredCost: this.parseNumber(row[' total incured cost ']), // Note: SPACES, lowercase and typo "incured"
       shareWH: this.parsePercentage(row['WH COST SHARE ']), // Note trailing space
@@ -172,16 +176,25 @@ export class ExcelProcessor {
     return 0;
   }
 
-  validateData(): { isValid: boolean; errors: string[] } {
+  validateData(): { isValid: boolean; errors: string[]; warnings: string[]; statistics: any } {
     const errors: string[] = [];
+    const warnings: string[] = [];
+    const missingData = {
+      glAccountsGroup: 0,
+      mainCategories: 0,
+      warehouse: 0,
+      opexCapex: 0,
+      tcoModelCategories: 0
+    };
 
     if (this.data.length === 0) {
       errors.push('No data found in the Excel file');
-      return { isValid: false, errors };
+      return { isValid: false, errors, warnings, statistics: null };
     }
 
-    // Check for required fields
+    // Check for required fields and collect statistics
     this.data.forEach((row, index) => {
+      // Critical errors
       if (!row.year || row.year < 2020 || row.year > 2030) {
         errors.push(`Row ${index + 2}: Invalid year`);
       }
@@ -191,9 +204,56 @@ export class ExcelProcessor {
       if (row.totalIncurredCost < 0) {
         errors.push(`Row ${index + 2}: Negative total cost`);
       }
+
+      // Data quality warnings - count missing values
+      if (!row.glAccountsGroup || row.glAccountsGroup.trim() === '') {
+        missingData.glAccountsGroup++;
+      }
+      if (!row.mainCategories || row.mainCategories.trim() === '') {
+        missingData.mainCategories++;
+      }
+      if (!row.warehouse || row.warehouse.trim() === '') {
+        missingData.warehouse++;
+      }
+      if (!row.opexCapex || row.opexCapex.trim() === '') {
+        missingData.opexCapex++;
+      }
+      if (!row.tcoModelCategories || row.tcoModelCategories.trim() === '') {
+        missingData.tcoModelCategories++;
+      }
     });
 
-    return { isValid: errors.length === 0, errors };
+    // Generate warnings for missing data
+    const totalRows = this.data.length;
+    if (missingData.glAccountsGroup > 0) {
+      warnings.push(`GL Accounts Group: ${missingData.glAccountsGroup} rows (${((missingData.glAccountsGroup / totalRows) * 100).toFixed(1)}%) have missing values`);
+    }
+    if (missingData.mainCategories > 0) {
+      warnings.push(`Main Categories: ${missingData.mainCategories} rows (${((missingData.mainCategories / totalRows) * 100).toFixed(1)}%) have missing values`);
+    }
+    if (missingData.warehouse > 0) {
+      warnings.push(`Warehouse: ${missingData.warehouse} rows (${((missingData.warehouse / totalRows) * 100).toFixed(1)}%) have missing values`);
+    }
+    if (missingData.opexCapex > 0) {
+      warnings.push(`OpEx/CapEx: ${missingData.opexCapex} rows (${((missingData.opexCapex / totalRows) * 100).toFixed(1)}%) have missing values`);
+    }
+    if (missingData.tcoModelCategories > 0) {
+      warnings.push(`TCO Model Categories: ${missingData.tcoModelCategories} rows (${((missingData.tcoModelCategories / totalRows) * 100).toFixed(1)}%) have missing values`);
+    }
+
+    const statistics = {
+      totalRows,
+      missingData,
+      completenessRate: {
+        glAccountsGroup: ((totalRows - missingData.glAccountsGroup) / totalRows * 100).toFixed(1) + '%',
+        mainCategories: ((totalRows - missingData.mainCategories) / totalRows * 100).toFixed(1) + '%',
+        warehouse: ((totalRows - missingData.warehouse) / totalRows * 100).toFixed(1) + '%',
+        opexCapex: ((totalRows - missingData.opexCapex) / totalRows * 100).toFixed(1) + '%',
+        tcoModelCategories: ((totalRows - missingData.tcoModelCategories) / totalRows * 100).toFixed(1) + '%'
+      }
+    };
+
+    return { isValid: errors.length === 0, errors, warnings, statistics };
   }
 
   async saveToDatabase(db: any): Promise<{ success: boolean; rowsInserted?: number; error?: string }> {
