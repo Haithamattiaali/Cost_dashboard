@@ -102,13 +102,50 @@ export default function Dashboard() {
     }
   }, [metrics]);
 
-  // Get GL Account data from metrics - limit to top 15 for readability
-  const costByGLAccount = metrics?.costByGLAccount
-    ?.slice(0, 15)  // Take only top 15 GL accounts
-    ?.map((item: any) => ({
+  // Get all GL Account data and prepare top 15 + Others
+  const allGLAccounts = metrics?.costByGLAccount || [];
+  const totalAllGLCost = allGLAccounts.reduce((sum, item) => sum + item.totalCost, 0);
+
+  // Get top 15 GL accounts
+  const top15GLAccounts = allGLAccounts
+    .slice(0, 15)
+    .map((item: any) => ({
       name: item.value,
       totalCost: item.totalCost,
-    })) || [];
+    }));
+
+  // Calculate "Others" category (all GL accounts beyond top 15)
+  const othersTotal = allGLAccounts
+    .slice(15)
+    .reduce((sum, item) => sum + item.totalCost, 0);
+
+  // Combine top 15 with "Others" category
+  const costByGLAccount = [
+    ...top15GLAccounts,
+    ...(othersTotal > 0 ? [{
+      name: 'Others',
+      totalCost: othersTotal
+    }] : [])
+  ];
+
+  // Log validation for percentage sum
+  React.useEffect(() => {
+    if (costByGLAccount.length > 0) {
+      const percentageSum = costByGLAccount.reduce((sum, item) => {
+        const percentage = totalAllGLCost > 0 ? (item.totalCost / totalAllGLCost * 100) : 0;
+        return sum + percentage;
+      }, 0);
+      console.log('GL Account Percentage Validation:', {
+        totalGLAccounts: allGLAccounts.length,
+        displayedCategories: costByGLAccount.length,
+        totalCostAllGLs: totalAllGLCost,
+        top15Cost: top15GLAccounts.reduce((sum, item) => sum + item.totalCost, 0),
+        othersCost: othersTotal,
+        sumOfPercentages: percentageSum.toFixed(2) + '%',
+        validation: Math.abs(percentageSum - 100) < 0.01 ? 'PASS ✓' : 'FAIL ✗'
+      });
+    }
+  }, [costByGLAccount, totalAllGLCost, allGLAccounts.length]);
 
   if (isLoading) {
     return (
@@ -183,8 +220,8 @@ export default function Dashboard() {
         {/* Cost by Quarter - Full Width */}
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">Cost Trend by Quarter</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={costByQuarter}>
+          <ResponsiveContainer width="100%" height={450}>
+            <ComposedChart data={costByQuarter} margin={{ top: 40, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
                 dataKey="value"
@@ -221,7 +258,22 @@ export default function Dashboard() {
 
         {/* GL Account Cost Analysis - Full Width */}
         <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">GL Accounts by Total Cost</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">GL Accounts by Total Cost</h3>
+            <div className="text-sm text-gray-600">
+              <span className="mr-4">
+                <span className="font-medium">Total GLs:</span> {allGLAccounts.length}
+              </span>
+              <span className="mr-4">
+                <span className="font-medium">Top 15 Displayed</span>
+              </span>
+              {othersTotal > 0 && (
+                <span>
+                  <span className="font-medium">Others:</span> {allGLAccounts.length - 15} GLs
+                </span>
+              )}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={500}>
             <BarChart data={costByGLAccount} layout="horizontal" margin={{ top: 30, right: 30, left: 20, bottom: 100 }}>
               <CartesianGrid {...CHART_STYLES.grid} />
@@ -247,8 +299,8 @@ export default function Dashboard() {
                   position="top"
                   content={(props) => {
                     const { x, y, width, value, index } = props;
-                    const totalGLCost = costByGLAccount.reduce((sum, item) => sum + item.totalCost, 0);
-                    const percentage = totalGLCost > 0 ? (value / totalGLCost * 100).toFixed(1) : '0';
+                    // Use totalAllGLCost for percentage calculation
+                    const percentage = totalAllGLCost > 0 ? (value / totalAllGLCost * 100).toFixed(1) : '0';
                     return (
                       <g>
                         <text
@@ -274,7 +326,10 @@ export default function Dashboard() {
                   }}
                 />
                 {costByGLAccount.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBrandColor(index)} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.name === 'Others' ? '#808080' : getBrandColor(index)}
+                  />
                 ))}
               </Bar>
             </BarChart>
@@ -286,7 +341,7 @@ export default function Dashboard() {
           {/* OPEX vs CAPEX Pie Chart */}
           <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">OPEX vs CAPEX Breakdown</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={[
@@ -295,11 +350,11 @@ export default function Dashboard() {
                   ].filter(item => item.value > 0)}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
+                  labelLine={{ stroke: '#666', strokeWidth: 1 }}
                   label={(props) => {
-                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, name } = props;
+                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, index, name } = props;
                     const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const radius = outerRadius + 30;
                     const x = cx + radius * Math.cos(-midAngle * RADIAN);
                     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -307,12 +362,12 @@ export default function Dashboard() {
                       <text
                         x={x}
                         y={y}
-                        fill="white"
+                        fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent}
                         textAnchor={x > cx ? 'start' : 'end'}
                         dominantBaseline="central"
-                        style={{ fontWeight: 'bold', fontSize: 14 }}
+                        style={{ fontWeight: 'bold', fontSize: 13 }}
                       >
-                        {`${name}: ${(percent * 100).toFixed(1)}%`}
+                        {name}
                       </text>
                     );
                   }}
@@ -320,17 +375,73 @@ export default function Dashboard() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill={PROCEED_COLORS.blue} />
-                  <Cell fill={PROCEED_COLORS.accent} />
+                  {[
+                    { name: 'OPEX', value: totalOpex || 0 },
+                    { name: 'CAPEX', value: totalCapex || 0 },
+                  ].filter(item => item.value > 0).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent} />
+                  ))}
                 </Pie>
+                <Pie
+                  data={[
+                    { name: 'OPEX', value: totalOpex || 0, label: `${formatCurrency(totalOpex || 0, true).replace('SAR ', '')}` },
+                    { name: 'CAPEX', value: totalCapex || 0, label: `${formatCurrency(totalCapex || 0, true).replace('SAR ', '')}` },
+                  ].filter(item => item.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(props) => {
+                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                    const RADIAN = Math.PI / 180;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                    const total = (totalOpex || 0) + (totalCapex || 0);
+                    const percentage = total > 0 ? (value / total * 100).toFixed(1) : '0';
+                    const formattedValue = formatCurrency(value, true).replace('SAR ', '');
+
+                    return (
+                      <g>
+                        <text
+                          x={x}
+                          y={y - 8}
+                          fill="white"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          style={{ fontWeight: 'bold', fontSize: 14 }}
+                        >
+                          {formattedValue}
+                        </text>
+                        <text
+                          x={x}
+                          y={y + 8}
+                          fill="white"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          style={{ fontWeight: 'bold', fontSize: 12 }}
+                        >
+                          {`${percentage}%`}
+                        </text>
+                      </g>
+                    );
+                  }}
+                  innerRadius={0}
+                  outerRadius={100}
+                  fill="transparent"
+                  dataKey="value"
+                  isAnimationActive={false}
+                />
                 <Tooltip
                   formatter={(value) => formatCurrency(value as number)}
                   contentStyle={CHART_STYLES.tooltip.contentStyle}
                   labelStyle={CHART_STYLES.tooltip.labelStyle}
                 />
                 <Legend
-                  wrapperStyle={CHART_STYLES.legend.wrapperStyle}
-                  formatter={(value, entry) => `${value}: ${formatCurrency(entry.payload.value)}`}
+                  wrapperStyle={{ ...CHART_STYLES.legend.wrapperStyle, textAlign: 'center', width: '100%' }}
+                  formatter={(value, entry) => `${value}: ${formatCurrency(entry.payload.value, true)}`}
+                  align="center"
+                  verticalAlign="bottom"
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -339,7 +450,7 @@ export default function Dashboard() {
           {/* Warehouse vs Transportation Pie Chart */}
           <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">Warehouse vs Transportation Cost</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <PieChart>
                 <Pie
                   data={(() => {
@@ -353,11 +464,11 @@ export default function Dashboard() {
                   })()}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
+                  labelLine={{ stroke: '#666', strokeWidth: 1 }}
                   label={(props) => {
-                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, name } = props;
+                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, index, name } = props;
                     const RADIAN = Math.PI / 180;
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const radius = outerRadius + 30;
                     const x = cx + radius * Math.cos(-midAngle * RADIAN);
                     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -365,12 +476,12 @@ export default function Dashboard() {
                       <text
                         x={x}
                         y={y}
-                        fill="white"
+                        fill={index === 0 ? PROCEED_COLORS.primary : PROCEED_COLORS.secondary}
                         textAnchor={x > cx ? 'start' : 'end'}
                         dominantBaseline="central"
-                        style={{ fontWeight: 'bold', fontSize: 14 }}
+                        style={{ fontWeight: 'bold', fontSize: 13 }}
                       >
-                        {`${name}: ${(percent * 100).toFixed(1)}%`}
+                        {name}
                       </text>
                     );
                   }}
@@ -378,17 +489,83 @@ export default function Dashboard() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill={PROCEED_COLORS.primary} />
-                  <Cell fill={PROCEED_COLORS.secondary} />
+                  {(() => {
+                    const warehouseTotal = costByQuarter?.reduce((sum, q) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                    const transportationTotal = costByQuarter?.reduce((sum, q) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                    return [
+                      { name: 'Warehouse', value: warehouseTotal },
+                      { name: 'Transportation', value: transportationTotal },
+                    ].filter(item => item.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.primary : PROCEED_COLORS.secondary} />
+                    ));
+                  })()}
                 </Pie>
+                <Pie
+                  data={(() => {
+                    const warehouseTotal = costByQuarter?.reduce((sum, q) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                    const transportationTotal = costByQuarter?.reduce((sum, q) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                    return [
+                      { name: 'Warehouse', value: warehouseTotal },
+                      { name: 'Transportation', value: transportationTotal },
+                    ].filter(item => item.value > 0);
+                  })()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(props) => {
+                    const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                    const RADIAN = Math.PI / 180;
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                    const warehouseTotal = costByQuarter?.reduce((sum, q) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                    const transportationTotal = costByQuarter?.reduce((sum, q) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                    const total = warehouseTotal + transportationTotal;
+                    const percentage = total > 0 ? (value / total * 100).toFixed(1) : '0';
+                    const formattedValue = formatCurrency(value, true).replace('SAR ', '');
+
+                    return (
+                      <g>
+                        <text
+                          x={x}
+                          y={y - 8}
+                          fill="white"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          style={{ fontWeight: 'bold', fontSize: 14 }}
+                        >
+                          {formattedValue}
+                        </text>
+                        <text
+                          x={x}
+                          y={y + 8}
+                          fill="white"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          style={{ fontWeight: 'bold', fontSize: 12 }}
+                        >
+                          {`${percentage}%`}
+                        </text>
+                      </g>
+                    );
+                  }}
+                  innerRadius={0}
+                  outerRadius={100}
+                  fill="transparent"
+                  dataKey="value"
+                  isAnimationActive={false}
+                />
                 <Tooltip
                   formatter={(value) => formatCurrency(value as number)}
                   contentStyle={CHART_STYLES.tooltip.contentStyle}
                   labelStyle={CHART_STYLES.tooltip.labelStyle}
                 />
                 <Legend
-                  wrapperStyle={CHART_STYLES.legend.wrapperStyle}
-                  formatter={(value, entry) => `${value}: ${formatCurrency(entry.payload.value)}`}
+                  wrapperStyle={{ ...CHART_STYLES.legend.wrapperStyle, textAlign: 'center', width: '100%' }}
+                  formatter={(value, entry) => `${value}: ${formatCurrency(entry.payload.value, true)}`}
+                  align="center"
+                  verticalAlign="bottom"
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -400,7 +577,7 @@ export default function Dashboard() {
           {/* Cost by Warehouse */}
           <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">Cost by Warehouse</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <BarChart data={costByWarehouse?.slice(0, 8)} layout="vertical">
                 <CartesianGrid {...CHART_STYLES.grid} />
                 <XAxis
@@ -458,7 +635,7 @@ export default function Dashboard() {
           {/* Cost by Category */}
           <div className="chart-container">
             <h3 className="text-lg font-semibold mb-4">Cost by TCO Category</h3>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={400}>
               <BarChart data={costByCategory?.slice(0, 8)}>
                 <CartesianGrid {...CHART_STYLES.grid} />
                 <XAxis
