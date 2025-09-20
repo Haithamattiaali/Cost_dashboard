@@ -444,7 +444,9 @@ export default function Dashboard() {
   }, [isLoading, error, metrics]);
 
   // Get all GL Account data and prepare top 15 + Others
-  const allGLAccounts = metrics?.costByGLAccount || [];
+  const allGLAccounts = comparisonMode && secondPeriodMetrics
+    ? secondPeriodMetrics.costByGLAccount || []
+    : metrics?.costByGLAccount || [];
   const totalAllGLCost = allGLAccounts.reduce(
     (sum, item) => sum + item.totalCost,
     0,
@@ -879,13 +881,28 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             OPEX vs CAPEX Breakdown
+            {comparisonMode && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Period 2: {secondPeriod?.quarter})
+              </span>
+            )}
           </h3>
           <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={[
-                  { name: "OPEX", value: totalOpex || 0 },
-                  { name: "CAPEX", value: totalCapex || 0 },
+                  {
+                    name: "OPEX",
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalOpex || 0
+                      : totalOpex || 0
+                  },
+                  {
+                    name: "CAPEX",
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalCapex || 0
+                      : totalCapex || 0
+                  },
                 ].filter((item) => item.value > 0)}
                 cx="50%"
                 cy="50%"
@@ -933,8 +950,18 @@ export default function Dashboard() {
                 dataKey="value"
               >
                 {[
-                  { name: "OPEX", value: totalOpex || 0 },
-                  { name: "CAPEX", value: totalCapex || 0 },
+                  {
+                    name: "OPEX",
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalOpex || 0
+                      : totalOpex || 0
+                  },
+                  {
+                    name: "CAPEX",
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalCapex || 0
+                      : totalCapex || 0
+                  },
                 ]
                   .filter((item) => item.value > 0)
                   .map((entry, index) => (
@@ -952,13 +979,27 @@ export default function Dashboard() {
                 data={[
                   {
                     name: "OPEX",
-                    value: totalOpex || 0,
-                    label: `${formatCurrency(totalOpex || 0, true).replace("SAR ", "")}`,
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalOpex || 0
+                      : totalOpex || 0,
+                    label: `${formatCurrency(
+                      comparisonMode && secondPeriodMetrics
+                        ? secondPeriodMetrics.totalOpex || 0
+                        : totalOpex || 0,
+                      true
+                    ).replace("SAR ", "")}`,
                   },
                   {
                     name: "CAPEX",
-                    value: totalCapex || 0,
-                    label: `${formatCurrency(totalCapex || 0, true).replace("SAR ", "")}`,
+                    value: comparisonMode && secondPeriodMetrics
+                      ? secondPeriodMetrics.totalCapex || 0
+                      : totalCapex || 0,
+                    label: `${formatCurrency(
+                      comparisonMode && secondPeriodMetrics
+                        ? secondPeriodMetrics.totalCapex || 0
+                        : totalCapex || 0,
+                      true
+                    ).replace("SAR ", "")}`,
                   },
                 ].filter((item) => item.value > 0)}
                 cx="50%"
@@ -1044,14 +1085,24 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Warehouse vs Transportation Cost
+            {comparisonMode && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Period 2: {secondPeriod?.quarter})
+              </span>
+            )}
           </h3>
           <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={(() => {
+                  // Use comparison mode data if enabled
+                  const dataSource = comparisonMode && secondPeriodMetrics
+                    ? secondPeriodMetrics.costByQuarter
+                    : costByQuarter;
+
                   // Aggregate warehouse and transportation costs from all quarters
                   const warehouseTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.warehouseCost || 0) +
@@ -1059,7 +1110,7 @@ export default function Dashboard() {
                       0,
                     ) || 0;
                   const transportationTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.transportationCost || 0) +
@@ -1117,8 +1168,13 @@ export default function Dashboard() {
                 dataKey="value"
               >
                 {(() => {
+                  // Use comparison mode data if enabled
+                  const dataSource = comparisonMode && secondPeriodMetrics
+                    ? secondPeriodMetrics.costByQuarter
+                    : costByQuarter;
+
                   const warehouseTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.warehouseCost || 0) +
@@ -1126,7 +1182,7 @@ export default function Dashboard() {
                       0,
                     ) || 0;
                   const transportationTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.transportationCost || 0) +
@@ -1152,8 +1208,13 @@ export default function Dashboard() {
               </Pie>
               <Pie
                 data={(() => {
+                  // Use comparison mode data if enabled
+                  const dataSource = comparisonMode && secondPeriodMetrics
+                    ? secondPeriodMetrics.costByQuarter
+                    : costByQuarter;
+
                   const warehouseTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.warehouseCost || 0) +
@@ -1161,7 +1222,7 @@ export default function Dashboard() {
                       0,
                     ) || 0;
                   const transportationTotal =
-                    costByQuarter?.reduce(
+                    dataSource?.reduce(
                       (sum, q) =>
                         sum +
                         (q.transportationCost || 0) +
@@ -1274,22 +1335,32 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Damasco Operations vs PROCEED 3PL
+            {comparisonMode && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Period 2: {secondPeriod?.quarter})
+              </span>
+            )}
           </h3>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart
               data={(() => {
+                // Use comparison mode data if enabled
+                const dataSource = comparisonMode && secondPeriodMetrics
+                  ? secondPeriodMetrics.costByQuarter
+                  : costByQuarter;
+
                 const pharmaciesTotal =
-                  costByQuarter?.reduce(
+                  dataSource?.reduce(
                     (sum, q) => sum + (q.pharmaciesCost || 0),
                     0,
                   ) || 0;
                 const distributionTotal =
-                  costByQuarter?.reduce(
+                  dataSource?.reduce(
                     (sum, q) => sum + (q.distributionCost || 0),
                     0,
                   ) || 0;
                 const lastMileTotal =
-                  costByQuarter?.reduce(
+                  dataSource?.reduce(
                     (sum, q) => sum + (q.lastMileCost || 0),
                     0,
                   ) || 0;
@@ -1297,12 +1368,12 @@ export default function Dashboard() {
                   pharmaciesTotal + distributionTotal + lastMileTotal;
 
                 const proceed3PLWHTotal =
-                  costByQuarter?.reduce(
+                  dataSource?.reduce(
                     (sum, q) => sum + (q.proceed3PLWHCost || 0),
                     0,
                   ) || 0;
                 const proceed3PLTRSTotal =
-                  costByQuarter?.reduce(
+                  dataSource?.reduce(
                     (sum, q) => sum + (q.proceed3PLTRSCost || 0),
                     0,
                   ) || 0;
@@ -1444,10 +1515,20 @@ export default function Dashboard() {
 
         {/* 3. Cost Efficiency Metrics - Third Visualization */}
         <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">Department Cost Trend</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Department Cost Trend
+            {comparisonMode && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Period 2: {secondPeriod?.quarter})
+              </span>
+            )}
+          </h3>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
-              data={costByQuarter?.map((q) => ({
+              data={(comparisonMode && secondPeriodMetrics
+                ? secondPeriodMetrics.costByQuarter
+                : costByQuarter
+              )?.map((q) => ({
                 quarter: q.value.toUpperCase(),
                 Pharmacies: q.pharmaciesCost || 0,
                 Distribution: q.distributionCost || 0,
@@ -1845,7 +1926,14 @@ export default function Dashboard() {
       {/* GL Account Cost Analysis - Full Width */}
       <div className="chart-container">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">GL Accounts by Total Cost</h3>
+          <h3 className="text-lg font-semibold">
+            GL Accounts by Total Cost
+            {comparisonMode && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Period 2: {secondPeriod?.quarter})
+              </span>
+            )}
+          </h3>
           <div className="text-sm text-gray-600">
             <span className="mr-4">
               <span className="font-medium">Total GLs:</span>{" "}

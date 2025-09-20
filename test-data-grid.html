@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Data Grid</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Data Grid</h1>
+    <div id="status"></div>
+    <div id="table-container"></div>
+
+    <script>
+        const status = document.getElementById('status');
+        const container = document.getElementById('table-container');
+
+        status.textContent = 'Loading data...';
+
+        fetch('http://localhost:3001/api/costs/dashboard')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Full response:', data);
+
+                if (data.success && data.metrics && data.metrics.topExpenses) {
+                    const expenses = data.metrics.topExpenses;
+                    status.textContent = `Successfully loaded ${expenses.length} rows`;
+
+                    // Create table
+                    let html = '<table>';
+
+                    // Header
+                    html += '<thead><tr>';
+                    html += '<th>GL Account Name</th>';
+                    html += '<th>GL Account No</th>';
+                    html += '<th>GL Group</th>';
+                    html += '<th>Main Categories</th>';
+                    html += '<th>Year</th>';
+                    html += '<th>Quarter</th>';
+                    html += '<th>Type</th>';
+                    html += '<th>Total Cost</th>';
+                    html += '</tr></thead>';
+
+                    // Body
+                    html += '<tbody>';
+                    expenses.slice(0, 10).forEach(row => {
+                        html += '<tr>';
+                        html += `<td>${row.glAccountName || '-'}</td>`;
+                        html += `<td>${row.glAccountNo || '-'}</td>`;
+                        html += `<td>${row.glAccountsGroup || '-'}</td>`;
+                        html += `<td>${row.mainCategories || '-'}</td>`;
+                        html += `<td>${row.year || '-'}</td>`;
+                        html += `<td>${row.quarter || '-'}</td>`;
+                        html += `<td>${row.type || '-'}</td>`;
+                        html += `<td>$${(row.totalIncurredCost || 0).toLocaleString()}</td>`;
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+
+                    container.innerHTML = html;
+
+                    console.log('Sample data:', expenses.slice(0, 3));
+                } else {
+                    status.textContent = 'Error: topExpenses not found in response';
+                    container.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                }
+            })
+            .catch(err => {
+                status.textContent = `Error: ${err.message}`;
+                console.error('Full error:', err);
+            });
+    </script>
+</body>
+</html>

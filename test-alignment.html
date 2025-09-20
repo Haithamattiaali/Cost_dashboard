@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Grid Alignment Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .grid-table * {
+            box-sizing: border-box;
+        }
+
+        .grid-table th,
+        .grid-table td {
+            padding: 8px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e5e5;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .grid-table th {
+            background: #f9f9f9;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .grid-table tbody tr:hover {
+            background: #f5f5f5;
+        }
+
+        /* Selection checkbox column - fixed width */
+        .grid-table th:first-child,
+        .grid-table td:first-child {
+            width: 48px;
+            min-width: 48px;
+            max-width: 48px;
+            text-align: center;
+        }
+
+        /* Column width using CSS variables */
+        .grid-table th:not(:first-child),
+        .grid-table td:not(:first-child) {
+            width: var(--col-width, 150px);
+        }
+
+        .alignment-indicator {
+            position: absolute;
+            width: 1px;
+            background: red;
+            height: 100vh;
+            pointer-events: none;
+            display: none;
+        }
+
+        .show-alignment {
+            display: block;
+        }
+
+        .test-controls {
+            margin-bottom: 20px;
+        }
+
+        .test-controls button {
+            margin-right: 10px;
+            padding: 8px 16px;
+            background: #9e1f63;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .test-controls button:hover {
+            background: #7a1849;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Grid Column Alignment Test</h1>
+
+    <div class="test-controls">
+        <button onclick="testAlignment()">Test Alignment</button>
+        <button onclick="toggleAlignmentGuides()">Toggle Alignment Guides</button>
+        <button onclick="addTestData()">Add More Data</button>
+        <button onclick="toggleDensity()">Toggle Density</button>
+    </div>
+
+    <div id="status" class="status" style="display: none;"></div>
+
+    <div class="test-container">
+        <h2>Test Grid with Fixed Table Layout</h2>
+        <div style="overflow-x: auto;">
+            <table class="grid-table" id="testTable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" /></th>
+                        <th style="--col-width: 200px;">Department</th>
+                        <th style="--col-width: 150px;">Budget</th>
+                        <th style="--col-width: 150px;">Actual</th>
+                        <th style="--col-width: 120px;">Variance</th>
+                        <th style="--col-width: 180px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="testTableBody">
+                    <tr>
+                        <td><input type="checkbox" /></td>
+                        <td>Engineering</td>
+                        <td>$250,000</td>
+                        <td>$245,000</td>
+                        <td>-2.0%</td>
+                        <td>Under Budget</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox" /></td>
+                        <td>Marketing</td>
+                        <td>$180,000</td>
+                        <td>$195,000</td>
+                        <td>+8.3%</td>
+                        <td>Over Budget</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox" /></td>
+                        <td>Sales</td>
+                        <td>$320,000</td>
+                        <td>$318,500</td>
+                        <td>-0.5%</td>
+                        <td>Under Budget</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox" /></td>
+                        <td>Human Resources</td>
+                        <td>$95,000</td>
+                        <td>$94,200</td>
+                        <td>-0.8%</td>
+                        <td>Under Budget</td>
+                    </tr>
+                    <tr>
+                        <td><input type="checkbox" /></td>
+                        <td>Operations</td>
+                        <td>$410,000</td>
+                        <td>$425,000</td>
+                        <td>+3.7%</td>
+                        <td>Over Budget</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="alignmentGuides"></div>
+
+    <script>
+        function testAlignment() {
+            const table = document.getElementById('testTable');
+            const headers = table.querySelectorAll('thead th');
+            const firstRow = table.querySelector('tbody tr');
+            const cells = firstRow ? firstRow.querySelectorAll('td') : [];
+
+            let allAligned = true;
+            let results = [];
+
+            for (let i = 0; i < headers.length; i++) {
+                if (cells[i]) {
+                    const headerRect = headers[i].getBoundingClientRect();
+                    const cellRect = cells[i].getBoundingClientRect();
+
+                    const leftDiff = Math.abs(headerRect.left - cellRect.left);
+                    const widthDiff = Math.abs(headerRect.width - cellRect.width);
+
+                    if (leftDiff > 1 || widthDiff > 1) {
+                        allAligned = false;
+                        results.push(`Column ${i}: Left diff=${leftDiff.toFixed(1)}px, Width diff=${widthDiff.toFixed(1)}px`);
+                    }
+                }
+            }
+
+            const statusEl = document.getElementById('status');
+            if (allAligned) {
+                statusEl.className = 'status success';
+                statusEl.innerHTML = '✅ All columns are properly aligned!';
+            } else {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = '❌ Alignment issues detected:<br>' + results.join('<br>');
+            }
+            statusEl.style.display = 'block';
+        }
+
+        function toggleAlignmentGuides() {
+            const table = document.getElementById('testTable');
+            const headers = table.querySelectorAll('thead th');
+            const guidesContainer = document.getElementById('alignmentGuides');
+
+            if (guidesContainer.children.length > 0) {
+                guidesContainer.innerHTML = '';
+            } else {
+                headers.forEach((header, index) => {
+                    const rect = header.getBoundingClientRect();
+                    const guide = document.createElement('div');
+                    guide.className = 'alignment-indicator show-alignment';
+                    guide.style.left = rect.left + 'px';
+                    guide.style.opacity = '0.3';
+                    guidesContainer.appendChild(guide);
+
+                    const rightGuide = document.createElement('div');
+                    rightGuide.className = 'alignment-indicator show-alignment';
+                    rightGuide.style.left = (rect.left + rect.width) + 'px';
+                    rightGuide.style.opacity = '0.3';
+                    rightGuide.style.background = 'blue';
+                    guidesContainer.appendChild(rightGuide);
+                });
+            }
+        }
+
+        function addTestData() {
+            const tbody = document.getElementById('testTableBody');
+            const newRow = tbody.insertRow();
+            newRow.innerHTML = `
+                <td><input type="checkbox" /></td>
+                <td>New Department ${tbody.rows.length}</td>
+                <td>$${Math.floor(Math.random() * 500000)}</td>
+                <td>$${Math.floor(Math.random() * 500000)}</td>
+                <td>${(Math.random() * 20 - 10).toFixed(1)}%</td>
+                <td>${Math.random() > 0.5 ? 'Under Budget' : 'Over Budget'}</td>
+            `;
+        }
+
+        let currentDensity = 'normal';
+        function toggleDensity() {
+            const table = document.getElementById('testTable');
+            const densities = {
+                'compact': { padding: '4px 16px', fontSize: '12px' },
+                'normal': { padding: '8px 16px', fontSize: '14px' },
+                'comfortable': { padding: '12px 16px', fontSize: '14px' }
+            };
+
+            const densityKeys = Object.keys(densities);
+            const currentIndex = densityKeys.indexOf(currentDensity);
+            currentDensity = densityKeys[(currentIndex + 1) % densityKeys.length];
+
+            const style = densities[currentDensity];
+            table.querySelectorAll('th, td').forEach(cell => {
+                cell.style.padding = style.padding;
+                cell.style.fontSize = style.fontSize;
+            });
+
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status success';
+            statusEl.innerHTML = `Density changed to: ${currentDensity}`;
+            statusEl.style.display = 'block';
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(testAlignment, 500);
+        });
+    </script>
+</body>
+</html>

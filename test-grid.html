@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Grid Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #9e1f63;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #7a1849;
+        }
+        #output {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enterprise Data Grid Test Suite</h1>
+
+    <div class="test-section">
+        <h2>🔍 Test Status</h2>
+        <div id="test-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Data Grid Tests</h2>
+        <button onclick="testDataLoading()">Test Data Loading</button>
+        <button onclick="testColumnDragDrop()">Test Column Drag & Drop</button>
+        <button onclick="testContextMenu()">Test Context Menu</button>
+        <button onclick="testFilters()">Test Filters</button>
+        <button onclick="testColumnVisibility()">Test Column Visibility</button>
+        <button onclick="testSelectAll()">Test Select All Performance</button>
+        <button onclick="runAllTests()">Run All Tests</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Test Output</h2>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        const APP_URL = 'http://localhost:5174';
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            output.innerHTML += `[${timestamp}] ${prefix} ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('test-status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+
+        async function testDataLoading() {
+            log('Testing data loading from API...', 'info');
+            updateStatus('Testing data loading...', 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/costs`);
+                const data = await response.json();
+
+                if (data && data.metrics && data.metrics.topExpenses) {
+                    const rowCount = data.metrics.topExpenses.length;
+                    log(`✓ API returned ${rowCount} rows`, 'success');
+                    log(`✓ First row: ${JSON.stringify(data.metrics.topExpenses[0])}`, 'success');
+                    updateStatus(`Data loading successful! ${rowCount} rows loaded`, 'success');
+
+                    // Check if app is rendering data
+                    log('Checking if frontend is displaying data...', 'info');
+                    // This would require actual browser automation
+                    log('Note: Manual verification needed - check http://localhost:5174/', 'info');
+                } else {
+                    log('✗ No data returned from API', 'error');
+                    updateStatus('Data loading failed - no data returned', 'error');
+                }
+            } catch (error) {
+                log(`✗ Error: ${error.message}`, 'error');
+                updateStatus(`Data loading failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testColumnDragDrop() {
+            log('Testing column drag & drop functionality...', 'info');
+            updateStatus('Testing column drag & drop...', 'info');
+
+            // This requires browser automation
+            log('Column drag & drop requires manual testing:', 'info');
+            log('1. Open http://localhost:5174/', 'info');
+            log('2. Try dragging column headers', 'info');
+            log('3. Verify columns reorder correctly', 'info');
+            updateStatus('Column drag & drop - manual verification needed', 'info');
+        }
+
+        async function testContextMenu() {
+            log('Testing context menu functionality...', 'info');
+            updateStatus('Testing context menu...', 'info');
+
+            log('Context menu requires manual testing:', 'info');
+            log('1. Right-click on any table row', 'info');
+            log('2. Verify context menu appears', 'info');
+            log('3. Click outside - menu should auto-dismiss', 'info');
+            log('4. Test menu actions (Copy, Select, etc.)', 'info');
+            updateStatus('Context menu - manual verification needed', 'info');
+        }
+
+        async function testFilters() {
+            log('Testing filter functionality...', 'info');
+            updateStatus('Testing filters...', 'info');
+
+            log('Filter testing requires manual verification:', 'info');
+            log('1. Click menu icon in column header', 'info');
+            log('2. Select "Filter Column"', 'info');
+            log('3. Enter filter text and apply', 'info');
+            log('4. Verify data is filtered correctly', 'info');
+            updateStatus('Filters - manual verification needed', 'info');
+        }
+
+        async function testColumnVisibility() {
+            log('Testing column visibility...', 'info');
+            updateStatus('Testing column visibility...', 'info');
+
+            log('Column visibility requires manual testing:', 'info');
+            log('1. Click "Columns" button in toolbar', 'info');
+            log('2. Toggle column checkboxes', 'info');
+            log('3. Click Apply', 'info');
+            log('4. Verify headers AND cells hide/show together', 'info');
+            updateStatus('Column visibility - manual verification needed', 'info');
+        }
+
+        async function testSelectAll() {
+            log('Testing select all performance...', 'info');
+            updateStatus('Testing select all performance...', 'info');
+
+            log('Select all performance requires manual testing:', 'info');
+            log('1. Click checkbox in header to select all', 'info');
+            log('2. Should complete in < 100ms', 'info');
+            log('3. Click again to deselect all', 'info');
+            log('4. Should be smooth with no lag', 'info');
+            updateStatus('Select all - manual verification needed', 'info');
+        }
+
+        async function runAllTests() {
+            log('Running all tests...', 'info');
+            updateStatus('Running all tests...', 'info');
+
+            await testDataLoading();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            testColumnDragDrop();
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            testContextMenu();
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            testFilters();
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            testColumnVisibility();
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            testSelectAll();
+
+            updateStatus('All tests completed - manual verification needed for UI features', 'info');
+        }
+
+        // Auto-run data loading test on page load
+        window.addEventListener('load', () => {
+            log('Test suite loaded', 'info');
+            updateStatus('Ready to test', 'info');
+            testDataLoading();
+        });
+    </script>
+</body>
+</html>

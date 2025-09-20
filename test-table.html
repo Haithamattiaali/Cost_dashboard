@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Table Data</title>
+</head>
+<body>
+    <h1>Testing Data Grid</h1>
+    <div id="output"></div>
+
+    <script>
+        // Test if the API is returning data
+        fetch('http://localhost:3001/api/costs/dashboard')
+            .then(response => response.json())
+            .then(data => {
+                const output = document.getElementById('output');
+
+                if (data.metrics && data.metrics.topExpenses) {
+                    output.innerHTML = `
+                        <h2>Data Found!</h2>
+                        <p>Total rows: ${data.metrics.topExpenses.length}</p>
+                        <p>First item:</p>
+                        <pre>${JSON.stringify(data.metrics.topExpenses[0], null, 2)}</pre>
+                    `;
+                } else {
+                    output.innerHTML = '<p>No topExpenses found in API response</p>';
+                }
+            })
+            .catch(err => {
+                document.getElementById('output').innerHTML = `<p>Error: ${err.message}</p>`;
+            });
+    </script>
+</body>
+</html>
