@@ -1662,20 +1662,23 @@ export default function Dashboard() {
             <ComposedChart
               data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
                 // Comparison mode: side-by-side columns for P1 and P2
-                [
-                  {
-                    name: "Damasco Operations",
-                    period1: firstPeriodMetrics.dmascoTotal || 0,
-                    period2: secondPeriodMetrics.dmascoTotal || 0,
-                    growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
-                  },
-                  {
-                    name: "PROCEED 3PL",
-                    period1: firstPeriodMetrics.proceed3PLTotal || 0,
-                    period2: secondPeriodMetrics.proceed3PLTotal || 0,
-                    growth: calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)
-                  }
-                ] :
+                (() => {
+                  const comparisonData = [
+                    {
+                      name: "Damasco Operations",
+                      period1: firstPeriodMetrics.dmascoTotal || 0,
+                      period2: secondPeriodMetrics.dmascoTotal || 0,
+                      growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
+                    },
+                    {
+                      name: "PROCEED 3PL",
+                      period1: firstPeriodMetrics.proceed3PLTotal || 0,
+                      period2: secondPeriodMetrics.proceed3PLTotal || 0,
+                      growth: calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)
+                    }
+                  ];
+                  return comparisonData;
+                })() :
                 // Normal mode
                 (() => {
                   const dataSource = costByQuarter;
@@ -1801,48 +1804,91 @@ export default function Dashboard() {
                   <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
                     <LabelList
                       position="top"
-                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        if (!value || value === 0) return null;
+
+                        return (
+                          <text
+                            x={x + width / 2}
+                            y={y - 8}
+                            fill="#1a1a1a"
+                            textAnchor="middle"
+                            stroke="white"
+                            strokeWidth={3}
+                            paintOrder="stroke"
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 12,
+                              fontFamily: LABEL_CONFIG.fonts.value,
+                              letterSpacing: '-0.02em'
+                            }}
+                          >
+                            {formatCurrency(value, true)}
+                          </text>
+                        );
+                      }}
                     />
                   </Bar>
                   <Bar dataKey="period2" name={`Period 2 (${secondPeriod?.quarter})`} fill={PROCEED_COLORS.primary}>
                     <LabelList
                       position="top"
                       content={(props) => {
-                        const { x, y, width, value } = props;
-                        const dataPoint = props.payload;
+                        const { x, y, width, value, index } = props;
                         if (!value || value === 0) return null;
+
+                        // Get the full data object using the index
+                        const chartData = [
+                          {
+                            name: "Damasco Operations",
+                            period1: firstPeriodMetrics.dmascoTotal || 0,
+                            period2: secondPeriodMetrics.dmascoTotal || 0,
+                            growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
+                          },
+                          {
+                            name: "PROCEED 3PL",
+                            period1: firstPeriodMetrics.proceed3PLTotal || 0,
+                            period2: secondPeriodMetrics.proceed3PLTotal || 0,
+                            growth: calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)
+                          }
+                        ];
+                        const dataPoint = chartData[index];
 
                         return (
                           <g>
+                            {/* Value label */}
                             <text
                               x={x + width / 2}
-                              y={y - 15}
-                              fill={LABEL_CONFIG.colors.value}
+                              y={y - 18}
+                              fill="#1a1a1a"
                               textAnchor="middle"
                               stroke="white"
                               strokeWidth={3}
                               paintOrder="stroke"
                               style={{
-                                fontWeight: 'bold',
-                                fontSize: LABEL_CONFIG.fontSize.value,
-                                fontFamily: LABEL_CONFIG.fonts.value
+                                fontWeight: 700,
+                                fontSize: 12,
+                                fontFamily: LABEL_CONFIG.fonts.value,
+                                letterSpacing: '-0.02em'
                               }}
                             >
                               {formatCurrency(value, true)}
                             </text>
+                            {/* Growth percentage */}
                             {dataPoint?.growth !== null && dataPoint?.growth !== undefined && (
                               <text
                                 x={x + width / 2}
-                                y={y - 2}
-                                fill={dataPoint.growth >= 0 ? '#e05e3d' : '#10b981'}
+                                y={y - 5}
+                                fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
                                 textAnchor="middle"
                                 stroke="white"
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 paintOrder="stroke"
                                 style={{
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage,
+                                  letterSpacing: '-0.01em'
                                 }}
                               >
                                 {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
@@ -1970,7 +2016,7 @@ export default function Dashboard() {
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
-                dataKey="quarter"
+                dataKey={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? "name" : "quarter"}
                 tick={{
                   ...CHART_STYLES.tick,
                   fontWeight: 600
@@ -1996,48 +2042,114 @@ export default function Dashboard() {
                   <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
                     <LabelList
                       position="top"
-                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        if (!value || value === 0) return null;
+                        return (
+                          <text
+                            x={x + width / 2}
+                            y={y - 8}
+                            fill="#1a1a1a"
+                            textAnchor="middle"
+                            stroke="white"
+                            strokeWidth={3}
+                            paintOrder="stroke"
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 12,
+                              fontFamily: LABEL_CONFIG.fonts.value,
+                              letterSpacing: '-0.02em'
+                            }}
+                          >
+                            {formatCurrency(value, true)}
+                          </text>
+                        );
+                      }}
                     />
                   </Bar>
                   <Bar dataKey="period2" name={`Period 2 (${secondPeriod?.quarter})`} fill={PROCEED_COLORS.primary}>
                     <LabelList
                       position="top"
                       content={(props) => {
-                        const { x, y, width, value } = props;
-                        const dataPoint = props.payload;
+                        const { x, y, width, value, index } = props;
                         if (!value || value === 0) return null;
+
+                        // Get the full data object using the index to access growth
+                        const departmentData = [
+                          {
+                            name: "Pharmacies",
+                            period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                            period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                            growth: calculateGrowth(
+                              firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                              secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0
+                            )
+                          },
+                          {
+                            name: "Distribution",
+                            period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                            period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                            growth: calculateGrowth(
+                              firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                              secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0
+                            )
+                          },
+                          {
+                            name: "Last Mile",
+                            period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                            period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                            growth: calculateGrowth(
+                              firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                              secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0
+                            )
+                          },
+                          {
+                            name: "PROCEED 3PL",
+                            period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                            period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                            growth: calculateGrowth(
+                              firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                              secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0
+                            )
+                          }
+                        ];
+                        const dataPoint = departmentData[index];
 
                         return (
                           <g>
+                            {/* Value label */}
                             <text
                               x={x + width / 2}
-                              y={y - 15}
-                              fill={LABEL_CONFIG.colors.value}
+                              y={y - 18}
+                              fill="#1a1a1a"
                               textAnchor="middle"
                               stroke="white"
                               strokeWidth={3}
                               paintOrder="stroke"
                               style={{
-                                fontWeight: 'bold',
-                                fontSize: LABEL_CONFIG.fontSize.value,
-                                fontFamily: LABEL_CONFIG.fonts.value
+                                fontWeight: 700,
+                                fontSize: 12,
+                                fontFamily: LABEL_CONFIG.fonts.value,
+                                letterSpacing: '-0.02em'
                               }}
                             >
                               {formatCurrency(value, true)}
                             </text>
+                            {/* Growth percentage */}
                             {dataPoint?.growth !== null && dataPoint?.growth !== undefined && (
                               <text
                                 x={x + width / 2}
-                                y={y - 2}
-                                fill={dataPoint.growth >= 0 ? '#e05e3d' : '#10b981'}
+                                y={y - 5}
+                                fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
                                 textAnchor="middle"
                                 stroke="white"
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 paintOrder="stroke"
                                 style={{
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage,
+                                  letterSpacing: '-0.01em'
                                 }}
                               >
                                 {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
@@ -2055,7 +2167,8 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { index } = props;
+                    const { x, y, width, value, index } = props;
+                    if (!value || value === 0) return null;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -2064,11 +2177,30 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-
-                    return renderBarLabel(props, {
-                      showPercentage: true,
-                      percentageTotal: quarterTotal
-                    });
+                    const percentage = quarterTotal > 0 ? (value / quarterTotal * 100).toFixed(1) : '0.0';
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 18}
+                          fill="#333"
+                          textAnchor="middle"
+                          fontSize={10}
+                          fontWeight="bold"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 5}
+                          fill="#666"
+                          textAnchor="middle"
+                          fontSize={9}
+                        >
+                          ({percentage}%)
+                        </text>
+                      </g>
+                    );
                   }}
                 />
               </Bar>
@@ -2076,7 +2208,8 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { index } = props;
+                    const { x, y, width, value, index } = props;
+                    if (!value || value === 0) return null;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -2085,11 +2218,30 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-
-                    return renderBarLabel(props, {
-                      showPercentage: true,
-                      percentageTotal: quarterTotal
-                    });
+                    const percentage = quarterTotal > 0 ? (value / quarterTotal * 100).toFixed(1) : '0.0';
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 18}
+                          fill="#333"
+                          textAnchor="middle"
+                          fontSize={10}
+                          fontWeight="bold"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 5}
+                          fill="#666"
+                          textAnchor="middle"
+                          fontSize={9}
+                        >
+                          ({percentage}%)
+                        </text>
+                      </g>
+                    );
                   }}
                 />
               </Bar>
@@ -2097,7 +2249,8 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { index } = props;
+                    const { x, y, width, value, index } = props;
+                    if (!value || value === 0) return null;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -2106,11 +2259,30 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-
-                    return renderBarLabel(props, {
-                      showPercentage: true,
-                      percentageTotal: quarterTotal
-                    });
+                    const percentage = quarterTotal > 0 ? (value / quarterTotal * 100).toFixed(1) : '0.0';
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 18}
+                          fill="#333"
+                          textAnchor="middle"
+                          fontSize={10}
+                          fontWeight="bold"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 5}
+                          fill="#666"
+                          textAnchor="middle"
+                          fontSize={9}
+                        >
+                          ({percentage}%)
+                        </text>
+                      </g>
+                    );
                   }}
                 />
               </Bar>
@@ -2118,7 +2290,8 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { index } = props;
+                    const { x, y, width, value, index } = props;
+                    if (!value || value === 0) return null;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -2127,11 +2300,30 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-
-                    return renderBarLabel(props, {
-                      showPercentage: true,
-                      percentageTotal: quarterTotal
-                    });
+                    const percentage = quarterTotal > 0 ? (value / quarterTotal * 100).toFixed(1) : '0.0';
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 18}
+                          fill="#333"
+                          textAnchor="middle"
+                          fontSize={10}
+                          fontWeight="bold"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 5}
+                          fill="#666"
+                          textAnchor="middle"
+                          fontSize={9}
+                        >
+                          ({percentage}%)
+                        </text>
+                      </g>
+                    );
                   }}
                 />
               </Bar>
@@ -2224,6 +2416,27 @@ export default function Dashboard() {
                 stroke={PROCEED_COLORS.secondary}
                 strokeWidth={2}
                 dot={{ r: 4 }}
+                label={{
+                  position: 'bottom',
+                  content: (props: any) => {
+                    const { x, y, value } = props;
+                    return (
+                      <text
+                        x={x}
+                        y={y + 15}
+                        fill="#1a1a1a"
+                        textAnchor="middle"
+                        fontSize={11}
+                        fontWeight={600}
+                        stroke="white"
+                        strokeWidth={2}
+                        paintOrder="stroke"
+                      >
+                        {formatCurrency(value, true)}
+                      </text>
+                    );
+                  }
+                }}
               />
               <Line
                 type="monotone"
@@ -2235,19 +2448,68 @@ export default function Dashboard() {
                 label={{
                   position: 'top',
                   content: (props: any) => {
-                    const { x, y, payload } = props;
-                    if (!payload?.growth) return null;
+                    const { x, y, value, index } = props;
+
+                    // Reconstruct the data to access growth values
+                    const categoriesP1: { [key: string]: number } = {};
+                    const categoriesP2: { [key: string]: number } = {};
+
+                    firstPeriodMetrics.topExpenses?.forEach((item: any) => {
+                      const category = item.tcoModelCategories || "Uncategorized";
+                      const cost = parseFloat(item.totalIncurredCost) || 0;
+                      categoriesP1[category] = (categoriesP1[category] || 0) + cost;
+                    });
+
+                    secondPeriodMetrics.topExpenses?.forEach((item: any) => {
+                      const category = item.tcoModelCategories || "Uncategorized";
+                      const cost = parseFloat(item.totalIncurredCost) || 0;
+                      categoriesP2[category] = (categoriesP2[category] || 0) + cost;
+                    });
+
+                    const allCategories = [...new Set([...Object.keys(categoriesP1), ...Object.keys(categoriesP2)])];
+                    const chartData = allCategories
+                      .map(category => ({
+                        name: category,
+                        period1: categoriesP1[category] || 0,
+                        period2: categoriesP2[category] || 0,
+                        growth: calculateGrowth(categoriesP1[category] || 0, categoriesP2[category] || 0)
+                      }))
+                      .sort((a, b) => b.period2 - a.period2)
+                      .slice(0, 10);
+
+                    const dataPoint = chartData[index];
+
                     return (
-                      <text
-                        x={x}
-                        y={y - 10}
-                        fill={payload.growth >= 0 ? '#e05e3d' : '#10b981'}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fontWeight={600}
-                      >
-                        {payload.growth >= 0 ? '↑' : '↓'}{Math.abs(payload.growth).toFixed(1)}%
-                      </text>
+                      <g>
+                        <text
+                          x={x}
+                          y={y - 18}
+                          fill="#1a1a1a"
+                          textAnchor="middle"
+                          fontSize={12}
+                          fontWeight={700}
+                          stroke="white"
+                          strokeWidth={2.5}
+                          paintOrder="stroke"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        {dataPoint?.growth !== undefined && (
+                          <text
+                            x={x}
+                            y={y - 5}
+                            fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                            textAnchor="middle"
+                            fontSize={11}
+                            fontWeight={700}
+                            stroke="white"
+                            strokeWidth={2}
+                            paintOrder="stroke"
+                          >
+                            {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                          </text>
+                        )}
+                      </g>
                     );
                   }
                 }}
@@ -2613,6 +2875,27 @@ export default function Dashboard() {
                 stroke={PROCEED_COLORS.secondary}
                 strokeWidth={2}
                 dot={{ r: 4 }}
+                label={{
+                  position: 'bottom',
+                  content: (props: any) => {
+                    const { x, y, value } = props;
+                    return (
+                      <text
+                        x={x}
+                        y={y + 15}
+                        fill="#1a1a1a"
+                        textAnchor="middle"
+                        fontSize={11}
+                        fontWeight={600}
+                        stroke="white"
+                        strokeWidth={2}
+                        paintOrder="stroke"
+                      >
+                        {formatCurrency(value, true)}
+                      </text>
+                    );
+                  }
+                }}
               />
               <Line
                 type="monotone"
@@ -2624,19 +2907,69 @@ export default function Dashboard() {
                 label={{
                   position: 'top',
                   content: (props: any) => {
-                    const { x, y, payload } = props;
-                    if (!payload?.growth) return null;
+                    const { x, y, value, index } = props;
+
+                    // Reconstruct the GL accounts data to access growth values
+                    const glAccountsP1: { [key: string]: number } = {};
+                    const glAccountsP2: { [key: string]: number } = {};
+
+                    // Aggregate Period 1 data
+                    firstPeriodMetrics.costByGLAccount?.forEach((item: any) => {
+                      glAccountsP1[item.value] = item.totalCost;
+                    });
+
+                    // Aggregate Period 2 data
+                    secondPeriodMetrics.costByGLAccount?.forEach((item: any) => {
+                      glAccountsP2[item.value] = item.totalCost;
+                    });
+
+                    // Get all unique GL accounts
+                    const allAccounts = [...new Set([...Object.keys(glAccountsP1), ...Object.keys(glAccountsP2)])];
+
+                    // Create line chart data with both periods
+                    const chartData = allAccounts
+                      .map(account => ({
+                        name: account,
+                        period1: glAccountsP1[account] || 0,
+                        period2: glAccountsP2[account] || 0,
+                        growth: calculateGrowth(glAccountsP1[account] || 0, glAccountsP2[account] || 0)
+                      }))
+                      .sort((a, b) => b.period2 - a.period2)
+                      .slice(0, 15);
+
+                    const dataPoint = chartData[index];
+
                     return (
-                      <text
-                        x={x}
-                        y={y - 10}
-                        fill={payload.growth >= 0 ? '#e05e3d' : '#10b981'}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fontWeight={600}
-                      >
-                        {payload.growth >= 0 ? '↑' : '↓'}{Math.abs(payload.growth).toFixed(1)}%
-                      </text>
+                      <g>
+                        <text
+                          x={x}
+                          y={y - 18}
+                          fill="#1a1a1a"
+                          textAnchor="middle"
+                          fontSize={12}
+                          fontWeight={700}
+                          stroke="white"
+                          strokeWidth={2.5}
+                          paintOrder="stroke"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                        {dataPoint?.growth !== undefined && (
+                          <text
+                            x={x}
+                            y={y - 5}
+                            fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                            textAnchor="middle"
+                            fontSize={11}
+                            fontWeight={700}
+                            stroke="white"
+                            strokeWidth={2}
+                            paintOrder="stroke"
+                          >
+                            {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                          </text>
+                        )}
+                      </g>
                     );
                   }
                 }}
