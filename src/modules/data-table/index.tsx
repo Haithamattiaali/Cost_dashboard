@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
   useReactTable,
   getCoreRowModel,
@@ -84,6 +85,27 @@ interface FilterDropdownProps {
 }
 
 const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    // Add slight delay to prevent immediate closure
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onClose]);
+
   const uniqueValues = useMemo(() => {
     const values = new Set<any>();
     data.forEach(row => {
@@ -128,10 +150,18 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }
     onClose();
   };
 
-  return (
+  const dropdownContent = (
     <div
-      className="absolute mt-1 bg-white border rounded-lg shadow-lg p-2 min-w-[200px] max-h-[400px] overflow-hidden flex flex-col filter-dropdown"
-      style={{ zIndex: 9999, top: '100%', left: 0 }}
+      ref={dropdownRef}
+      className="fixed bg-white border-2 border-gray-300 rounded-lg shadow-2xl p-3 min-w-[240px] max-h-[450px] overflow-hidden flex flex-col"
+      style={{
+        zIndex: 99999,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: 'white'
+      }}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header controls */}
       <div className="flex items-center justify-between pb-2 border-b mb-2">
@@ -182,6 +212,12 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }
         </button>
       </div>
     </div>
+  );
+
+  // Render dropdown in portal to avoid table overflow issues
+  return ReactDOM.createPortal(
+    dropdownContent,
+    document.body
   );
 };
 
@@ -565,20 +601,7 @@ export const DataTable: React.FC<DataTableProps> = ({
     ExportService.exportToExcel(filteredData, visibleColumns, `data_export_${timestamp}.xlsx`);
   }, [filteredData, columns, columnVisibility]);
 
-  // Close filter dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (activeFilterColumn) {
-        const filterRef = filterRefs.current[activeFilterColumn];
-        if (filterRef && !filterRef.contains(event.target as Node)) {
-          setActiveFilterColumn(null);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeFilterColumn]);
+  // Removed - now handled inside FilterDropdown component
 
   return (
     <div className={`data-table-container ${className}`}>
