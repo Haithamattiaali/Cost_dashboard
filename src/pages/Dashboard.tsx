@@ -367,6 +367,12 @@ const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
 export default function Dashboard() {
   const [filters, setFilters] = useState({});
 
+  // Comparison Mode State
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [firstPeriod, setFirstPeriod] = useState<{ year: number; quarter: string } | null>(null);
+  const [secondPeriod, setSecondPeriod] = useState<{ year: number; quarter: string } | null>(null);
+
+  // Main metrics query
   const {
     data: metrics,
     isLoading,
@@ -375,6 +381,38 @@ export default function Dashboard() {
     queryKey: ["dashboard-metrics", filters],
     queryFn: () => fetchDashboardMetrics(filters),
   });
+
+  // First period metrics for comparison
+  const {
+    data: firstPeriodMetrics,
+    isLoading: firstPeriodLoading,
+  } = useQuery({
+    queryKey: ["dashboard-metrics-period1", firstPeriod],
+    queryFn: () => fetchDashboardMetrics({
+      year: firstPeriod?.year,
+      quarter: firstPeriod?.quarter
+    }),
+    enabled: comparisonMode && firstPeriod !== null,
+  });
+
+  // Second period metrics for comparison
+  const {
+    data: secondPeriodMetrics,
+    isLoading: secondPeriodLoading,
+  } = useQuery({
+    queryKey: ["dashboard-metrics-period2", secondPeriod],
+    queryFn: () => fetchDashboardMetrics({
+      year: secondPeriod?.year,
+      quarter: secondPeriod?.quarter
+    }),
+    enabled: comparisonMode && secondPeriod !== null,
+  });
+
+  // Calculate growth percentage
+  const calculateGrowth = (period1Value: number, period2Value: number) => {
+    if (period1Value === 0) return 0;
+    return ((period2Value - period1Value) / period1Value) * 100;
+  };
 
   // Debug logging for CAPEX issue
   React.useEffect(() => {
@@ -498,42 +536,190 @@ export default function Dashboard() {
       {/* Filter Panel */}
       <FilterPanel onFiltersChange={setFilters} />
 
+      {/* Comparison Mode Control Panel */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h3 className="text-lg font-semibold text-gray-900">Comparison Mode</h3>
+            <button
+              onClick={() => {
+                setComparisonMode(!comparisonMode);
+                if (!comparisonMode) {
+                  // Initialize with default periods when enabling
+                  setFirstPeriod({ year: 2025, quarter: 'Q1' });
+                  setSecondPeriod({ year: 2025, quarter: 'Q2' });
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                comparisonMode ? 'bg-[#9e1f63]' : 'bg-gray-200'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  comparisonMode ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className="text-sm text-gray-500">
+              {comparisonMode ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+
+          {/* Period Selectors */}
+          {comparisonMode && (
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700">Period 1:</label>
+                <select
+                  value={`${firstPeriod?.year}-${firstPeriod?.quarter}`}
+                  onChange={(e) => {
+                    const [year, quarter] = e.target.value.split('-');
+                    setFirstPeriod({ year: parseInt(year), quarter });
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
+                >
+                  <option value="2025-Q1">Q1 2025</option>
+                  <option value="2025-Q2">Q2 2025</option>
+                  <option value="2025-Q3">Q3 2025</option>
+                  <option value="2025-Q4">Q4 2025</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <label className="text-sm font-medium text-gray-700">Period 2:</label>
+                <select
+                  value={`${secondPeriod?.year}-${secondPeriod?.quarter}`}
+                  onChange={(e) => {
+                    const [year, quarter] = e.target.value.split('-');
+                    setSecondPeriod({ year: parseInt(year), quarter });
+                  }}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
+                >
+                  <option value="2025-Q1">Q1 2025</option>
+                  <option value="2025-Q2">Q2 2025</option>
+                  <option value="2025-Q3">Q3 2025</option>
+                  <option value="2025-Q4">Q4 2025</option>
+                </select>
+              </div>
+
+              {/* Growth Indicator */}
+              {firstPeriodMetrics && secondPeriodMetrics && (
+                <div className="flex items-center space-x-2 ml-6 px-4 py-2 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">Overall Growth:</span>
+                  <span className={`text-sm font-bold ${
+                    calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) >= 0
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}>
+                    {calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) >= 0 ? '+' : ''}
+                    {calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost).toFixed(1)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           title="Total Cost"
-          value={formatCurrency(totalCost || 0)}
+          value={formatCurrency(
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.totalCost || 0
+              : totalCost || 0
+          )}
           icon={<BarChart3 className="h-5 w-5" />}
           color="primary"
-          trend={null}
+          trend={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? {
+            value: calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost),
+            isPositive: calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) < 0
+          } : null}
         />
         <MetricCard
           title="OPEX"
-          value={formatCurrency(totalOpex || 0)}
+          value={formatCurrency(
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.totalOpex || 0
+              : totalOpex || 0
+          )}
           icon={<TrendingUp className="h-5 w-5" />}
           color="blue"
-          subtitle={`${formatPercentage((totalOpex || 0) / (totalCost || 1))} of total`}
+          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <span className={`font-semibold ${
+              calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}>
+              {calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0 ? '↑' : '↓'}
+              {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex)).toFixed(1)}%
+              {' vs Period 1'}
+            </span>
+          ) : `${formatPercentage((totalOpex || 0) / (totalCost || 1))} of total`}
         />
         <MetricCard
           title="CAPEX"
-          value={formatCurrency(totalCapex || 0)}
+          value={formatCurrency(
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.totalCapex || 0
+              : totalCapex || 0
+          )}
           icon={<TrendingDown className="h-5 w-5" />}
           color="accent"
-          subtitle={`${formatPercentage((totalCapex || 0) / (totalCost || 1))} of total`}
+          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <span className={`font-semibold ${
+              calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}>
+              {calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
+              {Math.abs(calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex)).toFixed(1)}%
+              {' vs Period 1'}
+            </span>
+          ) : `${formatPercentage((totalCapex || 0) / (totalCost || 1))} of total`}
         />
         <MetricCard
           title="DMASCO Operations"
-          value={formatCurrency(dmascoTotal || 0)}
+          value={formatCurrency(
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.dmascoTotal || 0
+              : dmascoTotal || 0
+          )}
           icon={<Building2 className="h-5 w-5" />}
           color="secondary"
-          subtitle="Pharmacy, Dist, LM"
+          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <span className={`font-semibold ${
+              calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}>
+              {calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0 ? '↑' : '↓'}
+              {Math.abs(calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)).toFixed(1)}%
+              {' vs Period 1'}
+            </span>
+          ) : "Pharmacy, Dist, LM"}
         />
         <MetricCard
           title="PROCEED 3PL"
-          value={formatCurrency(proceed3PLTotal || 0)}
+          value={formatCurrency(
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.proceed3PLTotal || 0
+              : proceed3PLTotal || 0
+          )}
           icon={<Truck className="h-5 w-5" />}
           color="primary"
-          subtitle="WH & Transportation"
+          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <span className={`font-semibold ${
+              calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal) >= 0
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}>
+              {calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal) >= 0 ? '↑' : '↓'}
+              {Math.abs(calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)).toFixed(1)}%
+              {' vs Period 1'}
+            </span>
+          ) : "WH & Transportation"}
         />
       </div>
 
@@ -541,10 +727,31 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-6">
         {/* Cost by Quarter - Full Width */}
         <div className="chart-container">
-          <h3 className="text-lg font-semibold mb-4">Cost Trend by Quarter</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Cost Trend by Quarter
+            {comparisonMode && firstPeriodMetrics && secondPeriodMetrics && (
+              <span className="text-sm font-normal ml-3 text-gray-600">
+                (Comparing {firstPeriod?.quarter} vs {secondPeriod?.quarter})
+              </span>
+            )}
+          </h3>
           <ResponsiveContainer width="100%" height={450}>
             <BarChart
-              data={costByQuarter}
+              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+                // Comparison mode: Merge data for side-by-side bars
+                costByQuarter?.map(q => ({
+                  ...q,
+                  period1Cost: firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value)?.totalCost || 0,
+                  period2Cost: secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value)?.totalCost || 0,
+                  growth: q.value === firstPeriod.quarter || q.value === secondPeriod.quarter ?
+                    calculateGrowth(
+                      firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value)?.totalCost || 0,
+                      secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value)?.totalCost || 0
+                    ) : null
+                })) :
+                // Normal mode
+                costByQuarter
+              }
               margin={{ top: 50, right: 30, left: 20, bottom: 20 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
@@ -571,22 +778,97 @@ export default function Dashboard() {
                 contentStyle={CHART_STYLES.tooltip.contentStyle}
                 labelStyle={CHART_STYLES.tooltip.labelStyle}
               />
-              <Bar
-                dataKey="totalCost"
-                name="Total Cost"
-                fill={PROCEED_COLORS.primary}
-              >
-                <LabelList
-                  position="top"
-                  content={(props) => {
-                    const total = costByQuarter?.reduce((sum, item) => sum + (item.totalCost || 0), 0) || 0;
-                    return renderBarLabel(props, {
-                      showPercentage: true,
-                      percentageTotal: total
-                    });
-                  }}
-                />
-              </Bar>
+              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+                <>
+                  <Legend
+                    wrapperStyle={CHART_STYLES.legend.wrapperStyle}
+                    iconSize={CHART_STYLES.legend.iconSize}
+                  />
+                  <Bar
+                    dataKey="period1Cost"
+                    name={`Period 1 (${firstPeriod?.quarter})`}
+                    fill={PROCEED_COLORS.secondary}
+                  >
+                    <LabelList
+                      position="top"
+                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                    />
+                  </Bar>
+                  <Bar
+                    dataKey="period2Cost"
+                    name={`Period 2 (${secondPeriod?.quarter})`}
+                    fill={PROCEED_COLORS.primary}
+                  >
+                    <LabelList
+                      position="top"
+                      content={(props) => {
+                        const { x, y, width, height, value, index } = props;
+                        const dataPoint = props.payload;
+                        if (!value || value === 0) return null;
+
+                        // Get growth for comparison quarters only
+                        const growth = dataPoint.growth;
+
+                        return (
+                          <g>
+                            <text
+                              x={x + width / 2}
+                              y={y - 15}
+                              fill={LABEL_CONFIG.colors.value}
+                              textAnchor="middle"
+                              stroke="white"
+                              strokeWidth={3}
+                              paintOrder="stroke"
+                              style={{
+                                fontWeight: 'bold',
+                                fontSize: LABEL_CONFIG.fontSize.value,
+                                fontFamily: LABEL_CONFIG.fonts.value
+                              }}
+                            >
+                              {formatCurrency(value, true)}
+                            </text>
+                            {growth !== null && growth !== undefined && (
+                              <text
+                                x={x + width / 2}
+                                y={y - 2}
+                                fill={growth >= 0 ? '#e05e3d' : '#10b981'}
+                                textAnchor="middle"
+                                stroke="white"
+                                strokeWidth={2}
+                                paintOrder="stroke"
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                }}
+                              >
+                                {growth >= 0 ? '↑' : '↓'}{Math.abs(growth).toFixed(1)}%
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </>
+              ) : (
+                <Bar
+                  dataKey="totalCost"
+                  name="Total Cost"
+                  fill={PROCEED_COLORS.primary}
+                >
+                  <LabelList
+                    position="top"
+                    content={(props) => {
+                      const total = costByQuarter?.reduce((sum, item) => sum + (item.totalCost || 0), 0) || 0;
+                      return renderBarLabel(props, {
+                        showPercentage: true,
+                        percentageTotal: total
+                      });
+                    }}
+                  />
+                </Bar>
+              )}
             </BarChart>
           </ResponsiveContainer>
         </div>
