@@ -31,6 +31,10 @@ import MetricCard from "../components/MetricCard";
 import FilterPanel from "../components/FilterPanel";
 import { fetchDashboardMetrics } from "../api/costs";
 import { formatCurrency, formatPercentage } from "../utils/formatting";
+import {
+  formatValueWithPercentage,
+  getLabelStyles
+} from "../modules/chart-labels";
 
 // PROCEED Brand Colors
 const PROCEED_COLORS = {
@@ -292,8 +296,17 @@ export default function Dashboard() {
                 <LabelList
                   dataKey="totalCost"
                   position="top"
-                  formatter={(value: number) => formatCurrency(value, true)}
-                  {...CHART_STYLES.labelList}
+                  formatter={(value: number) => {
+                    // Calculate total for percentage
+                    const total = costByQuarter?.reduce((sum, item) => sum + (item.totalCost || 0), 0) || 0;
+                    return formatValueWithPercentage({
+                      value,
+                      total,
+                      showPercentage: true,
+                      compact: true
+                    });
+                  }}
+                  style={getLabelStyles(0, 1, 'bar')}
                 />
               </Bar>
             </BarChart>

@@ -21,6 +21,11 @@ import { GridLayoutControl } from '../modules/grid-layout';
 import { formatCurrency } from '../utils/formatting';
 import { fetchPlaygroundData, fetchMultiMeasureData } from '../api/playground';
 import {
+  generateLabelProps,
+  shouldDisplayLabels,
+  formatTableCellWithPercentage
+} from '../modules/chart-labels';
+import {
   VisualizationConfig,
   DIMENSIONS,
   MEASURES,
@@ -121,11 +126,8 @@ const renderCustomizedPieLabel = ({
   );
 };
 
-// Custom label formatter for Bar and Line charts
-const renderValueWithPercentage = (value: number, total: number) => {
-  const percentage = ((value / total) * 100).toFixed(1);
-  return `${formatCurrency(value, true)} (${percentage}%)`;
-};
+// Note: Label formatting is now handled by the chart-labels module
+// This provides better multi-measure support and intelligent positioning
 
 
 export default function PlaygroundVisualization({
@@ -232,19 +234,26 @@ export default function PlaygroundVisualization({
                 const color = BRAND_PALETTE[measureIndex % BRAND_PALETTE.length];
                 const total = totals[measure];
 
+                // Generate intelligent label props for this measure
+                const labelProps = generateLabelProps(
+                  measure,
+                  measureIndex,
+                  measures,
+                  totals,
+                  'bar'
+                );
+
+                // Check if we should display labels based on data density
+                const showLabels = shouldDisplayLabels(
+                  chartData.length,
+                  measures.length,
+                  800 // Approximate chart width
+                );
+
                 return (
                   <Bar key={measure} dataKey={measure} name={measureLabel} fill={color}>
-                    {measures.length === 1 && (
-                      <LabelList
-                        dataKey={measure}
-                        position="top"
-                        formatter={(value: number) => renderValueWithPercentage(value, total)}
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 'bold',
-                          fill: '#2d2d2d'
-                        }}
-                      />
+                    {showLabels && (
+                      <LabelList {...labelProps} />
                     )}
                   </Bar>
                 );
@@ -314,6 +323,22 @@ export default function PlaygroundVisualization({
                 const color = BRAND_PALETTE[measureIndex % BRAND_PALETTE.length];
                 const total = totals[measure];
 
+                // Generate intelligent label props for this measure
+                const labelProps = generateLabelProps(
+                  measure,
+                  measureIndex,
+                  measures,
+                  totals,
+                  'line'
+                );
+
+                // Check if we should display labels based on data density
+                const showLabels = shouldDisplayLabels(
+                  chartData.length,
+                  measures.length,
+                  800 // Approximate chart width
+                );
+
                 return (
                   <Line
                     key={measure}
@@ -325,18 +350,8 @@ export default function PlaygroundVisualization({
                     activeDot={{ r: 6 }}
                     name={measureLabel}
                   >
-                    {measures.length === 1 && (
-                      <LabelList
-                        dataKey={measure}
-                        position="top"
-                        offset={10}
-                        formatter={(value: number) => renderValueWithPercentage(value, total)}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 'bold',
-                          fill: '#2d2d2d'
-                        }}
-                      />
+                    {showLabels && (
+                      <LabelList {...labelProps} />
                     )}
                   </Line>
                 );
