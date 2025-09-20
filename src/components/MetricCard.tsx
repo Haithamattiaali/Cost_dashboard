@@ -39,8 +39,8 @@ export default function MetricCard({ title, value, icon, color = 'primary', tren
               ) : (
                 <TrendingDown className="h-4 w-4 text-red-500 mr-1" />
               )}
-              <span className={`text-sm ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                {Math.abs(trend.value)}%
+              <span className={`text-sm font-semibold ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                {trend.value > 0 ? '↑' : trend.value < 0 ? '↓' : ''} {trend.value > 0 ? '+' : ''}{trend.value.toFixed(1)}%
               </span>
             </div>
           )}

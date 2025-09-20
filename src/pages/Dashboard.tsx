@@ -796,7 +796,29 @@ export default function Dashboard() {
                   >
                     <LabelList
                       position="top"
-                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        if (!value || value === 0) return null;
+
+                        return (
+                          <text
+                            x={x + width / 2}
+                            y={y - 8}
+                            fill={LABEL_CONFIG.colors.value}
+                            textAnchor="middle"
+                            stroke="white"
+                            strokeWidth={3}
+                            paintOrder="stroke"
+                            style={{
+                              fontWeight: 'bold',
+                              fontSize: LABEL_CONFIG.fontSize.value,
+                              fontFamily: LABEL_CONFIG.fonts.value
+                            }}
+                          >
+                            {formatCurrency(value, true)}
+                          </text>
+                        );
+                      }}
                     />
                   </Bar>
                   <Bar
@@ -807,46 +829,65 @@ export default function Dashboard() {
                     <LabelList
                       position="top"
                       content={(props) => {
-                        const { x, y, width, height, value, index } = props;
-                        const dataPoint = props.payload;
+                        const { x, y, width, value, index } = props;
                         if (!value || value === 0) return null;
 
+                        // Reconstruct the data array to access growth values
+                        const quarterData = costByQuarter?.map(q => {
+                          const period1Data = firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value);
+                          const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
+                          const period1Cost = period1Data?.totalCost || 0;
+                          const period2Cost = period2Data?.totalCost || 0;
+
+                          return {
+                            quarter: q.value,
+                            period1Cost,
+                            period2Cost,
+                            growth: calculateGrowth(period1Cost, period2Cost)
+                          };
+                        });
+
+                        const dataPoint = quarterData?.[index];
                         const growth = dataPoint?.growth;
 
                         return (
                           <g>
+                            {/* Value label */}
                             <text
                               x={x + width / 2}
-                              y={y - 15}
-                              fill={LABEL_CONFIG.colors.value}
+                              y={y - 18}
+                              fill="#1a1a1a"
                               textAnchor="middle"
                               stroke="white"
                               strokeWidth={3}
                               paintOrder="stroke"
                               style={{
-                                fontWeight: 'bold',
-                                fontSize: LABEL_CONFIG.fontSize.value,
-                                fontFamily: LABEL_CONFIG.fonts.value
+                                fontWeight: 700,
+                                fontSize: 12,
+                                fontFamily: LABEL_CONFIG.fonts.value,
+                                letterSpacing: '-0.02em'
                               }}
                             >
                               {formatCurrency(value, true)}
                             </text>
+                            {/* Growth percentage */}
                             {growth !== null && growth !== undefined && (
                               <text
                                 x={x + width / 2}
-                                y={y - 2}
-                                fill={growth >= 0 ? '#e05e3d' : '#10b981'}
+                                y={y - 5}
+                                fill={growth > 0 ? '#dc2626' : growth < 0 ? '#16a34a' : '#6b7280'}
                                 textAnchor="middle"
                                 stroke="white"
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                                 paintOrder="stroke"
                                 style={{
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage,
+                                  letterSpacing: '-0.01em'
                                 }}
                               >
-                                {growth >= 0 ? '↑' : '↓'}{Math.abs(growth).toFixed(1)}%
+                                {growth > 0 ? '↑' : growth < 0 ? '↓' : ''}{growth > 0 ? '+' : ''}{growth.toFixed(1)}%
                               </text>
                             )}
                           </g>
@@ -855,28 +896,6 @@ export default function Dashboard() {
                     />
                   </Bar>
 
-                  {/* Overall growth percentage display */}
-                  {firstPeriod && secondPeriod && (
-                    <text
-                      x="50%"
-                      y={420}
-                      textAnchor="middle"
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 'bold',
-                        fill: PROCEED_COLORS.primary
-                      }}
-                    >
-                      Overall Growth: {calculateGrowth(
-                        firstPeriodMetrics.totalCost,
-                        secondPeriodMetrics.totalCost
-                      ) >= 0 ? '↑' : '↓'}
-                      {Math.abs(calculateGrowth(
-                        firstPeriodMetrics.totalCost,
-                        secondPeriodMetrics.totalCost
-                      )).toFixed(1)}%
-                    </text>
-                  )}
                 </>
               ) : (
                 <Bar
