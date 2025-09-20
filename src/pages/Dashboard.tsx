@@ -31,10 +31,6 @@ import MetricCard from "../components/MetricCard";
 import FilterPanel from "../components/FilterPanel";
 import { fetchDashboardMetrics } from "../api/costs";
 import { formatCurrency, formatPercentage } from "../utils/formatting";
-import {
-  formatValueWithPercentage,
-  getLabelStyles
-} from "../modules/chart-labels";
 import { DataTable, DataTableColumn } from "../modules/data-table";
 import "../modules/data-table/styles.css";
 
@@ -73,6 +69,91 @@ const BRAND_PALETTE = [
 // Intelligent brand color rotation for GL accounts
 const getBrandColor = (index: number): string => {
   return BRAND_PALETTE[index % BRAND_PALETTE.length];
+};
+
+// Global enhanced bar chart label configuration
+const LABEL_CONFIG = {
+  // Minimum value to show label (prevents overlapping on small bars)
+  minValueThreshold: 0,
+  // Global font sizes
+  fontSize: {
+    value: 13,
+    percentage: 10
+  },
+  // Y-axis offsets for label positioning
+  yOffset: {
+    value: 15,
+    percentage: 3
+  },
+  // Colors using PROCEED palette
+  colors: {
+    value: '#2d2d2d',
+    percentage: '#424046'
+  },
+  // Font families
+  fonts: {
+    value: 'Montserrat, sans-serif',
+    percentage: 'Open Sans, sans-serif'
+  }
+};
+
+// Global bar chart label renderer - cleaner approach without backgrounds
+const renderBarLabel = (props: any, options: {
+  showPercentage?: boolean;
+  percentageTotal?: number;
+  minValue?: number;
+}) => {
+  const { x, y, width, value } = props;
+
+  // Don't show label if value is too small (prevents overlap)
+  const minThreshold = options.minValue || LABEL_CONFIG.minValueThreshold;
+  if (!value || value < minThreshold) return null;
+
+  const percentage = options.percentageTotal && options.percentageTotal > 0
+    ? ((value / options.percentageTotal) * 100).toFixed(1)
+    : null;
+
+  return (
+    <g>
+      {/* Value label with stroke for contrast */}
+      <text
+        x={x + width / 2}
+        y={y - LABEL_CONFIG.yOffset.value}
+        fill={LABEL_CONFIG.colors.value}
+        textAnchor="middle"
+        stroke="white"
+        strokeWidth={3}
+        paintOrder="stroke"
+        style={{
+          fontWeight: 'bold',
+          fontSize: LABEL_CONFIG.fontSize.value,
+          fontFamily: LABEL_CONFIG.fonts.value
+        }}
+      >
+        {formatCurrency(value, true)}
+      </text>
+
+      {/* Percentage label if enabled */}
+      {options.showPercentage && percentage && (
+        <text
+          x={x + width / 2}
+          y={y - LABEL_CONFIG.yOffset.percentage}
+          fill={LABEL_CONFIG.colors.percentage}
+          textAnchor="middle"
+          stroke="white"
+          strokeWidth={2}
+          paintOrder="stroke"
+          style={{
+            fontSize: LABEL_CONFIG.fontSize.percentage,
+            fontWeight: 500,
+            fontFamily: LABEL_CONFIG.fonts.percentage
+          }}
+        >
+          ({percentage}%)
+        </text>
+      )}
+    </g>
+  );
 };
 
 // Centralized chart styling configuration - Enhanced for better readability
@@ -464,7 +545,7 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={450}>
             <BarChart
               data={costByQuarter}
-              margin={{ top: 40, right: 30, left: 20, bottom: 20 }}
+              margin={{ top: 50, right: 30, left: 20, bottom: 20 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -496,19 +577,14 @@ export default function Dashboard() {
                 fill={PROCEED_COLORS.primary}
               >
                 <LabelList
-                  dataKey="totalCost"
                   position="top"
-                  formatter={(value: number) => {
-                    // Calculate total for percentage
+                  content={(props) => {
                     const total = costByQuarter?.reduce((sum, item) => sum + (item.totalCost || 0), 0) || 0;
-                    return formatValueWithPercentage({
-                      value,
-                      total,
+                    return renderBarLabel(props, {
                       showPercentage: true,
-                      compact: true
+                      percentageTotal: total
                     });
                   }}
-                  style={getLabelStyles(0, 1, 'bar')}
                 />
               </Bar>
             </BarChart>
@@ -966,7 +1042,7 @@ export default function Dashboard() {
                   },
                 ];
               })()}
-              margin={{ top: 30, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 50, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -1071,28 +1147,10 @@ export default function Dashboard() {
                         ? ((value / grandTotal) * 100).toFixed(1)
                         : "0";
 
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 12 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 3}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 10 }}
-                        >
-                          {percentage}%
-                        </text>
-                      </g>
-                    );
+                    return renderBarLabel(props, {
+                      showPercentage: true,
+                      percentageTotal: grandTotal
+                    });
                   }}
                 />
                 <Cell fill={PROCEED_COLORS.darkRed} />
@@ -1115,7 +1173,7 @@ export default function Dashboard() {
                 "PROCEED 3PL":
                   (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0),
               }))}
-              margin={{ top: 40, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 50, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -1144,10 +1202,7 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { x, y, width, value, index } = props;
-                    if (!value) return null;
-
-                    // Get the data for this specific bar
+                    const { index } = props;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -1156,32 +1211,11 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-                    const percentage =
-                      quarterTotal > 0
-                        ? ((value / quarterTotal) * 100).toFixed(1)
-                        : "0.0";
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 9 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 8 }}
-                        >
-                          ({percentage || '0'}%)
-                        </text>
-                      </g>
-                    );
+
+                    return renderBarLabel(props, {
+                      showPercentage: true,
+                      percentageTotal: quarterTotal
+                    });
                   }}
                 />
               </Bar>
@@ -1189,10 +1223,7 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { x, y, width, value, index } = props;
-                    if (!value) return null;
-
-                    // Get the data for this specific bar
+                    const { index } = props;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -1201,32 +1232,11 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-                    const percentage =
-                      quarterTotal > 0
-                        ? ((value / quarterTotal) * 100).toFixed(1)
-                        : "0.0";
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 9 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 8 }}
-                        >
-                          ({percentage || '0'}%)
-                        </text>
-                      </g>
-                    );
+
+                    return renderBarLabel(props, {
+                      showPercentage: true,
+                      percentageTotal: quarterTotal
+                    });
                   }}
                 />
               </Bar>
@@ -1234,10 +1244,7 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { x, y, width, value, index } = props;
-                    if (!value) return null;
-
-                    // Get the data for this specific bar
+                    const { index } = props;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -1246,32 +1253,11 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-                    const percentage =
-                      quarterTotal > 0
-                        ? ((value / quarterTotal) * 100).toFixed(1)
-                        : "0.0";
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 9 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 8 }}
-                        >
-                          ({percentage || '0'}%)
-                        </text>
-                      </g>
-                    );
+
+                    return renderBarLabel(props, {
+                      showPercentage: true,
+                      percentageTotal: quarterTotal
+                    });
                   }}
                 />
               </Bar>
@@ -1279,10 +1265,7 @@ export default function Dashboard() {
                 <LabelList
                   position="top"
                   content={(props) => {
-                    const { x, y, width, value, index } = props;
-                    if (!value) return null;
-
-                    // Get the data for this specific bar
+                    const { index } = props;
                     const dataEntry = costByQuarter?.[index];
                     const quarterTotal = dataEntry
                       ? (dataEntry.pharmaciesCost || 0) +
@@ -1291,32 +1274,11 @@ export default function Dashboard() {
                         (dataEntry.proceed3PLWHCost || 0) +
                         (dataEntry.proceed3PLTRSCost || 0)
                       : 0;
-                    const percentage =
-                      quarterTotal > 0
-                        ? ((value / quarterTotal) * 100).toFixed(1)
-                        : "0.0";
-                    return (
-                      <g>
-                        <text
-                          x={x + width / 2}
-                          y={y - 15}
-                          fill="#333"
-                          textAnchor="middle"
-                          style={{ fontWeight: "bold", fontSize: 9 }}
-                        >
-                          {formatCurrency(value, true)}
-                        </text>
-                        <text
-                          x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
-                          textAnchor="middle"
-                          style={{ fontSize: 8 }}
-                        >
-                          ({percentage || '0'}%)
-                        </text>
-                      </g>
-                    );
+
+                    return renderBarLabel(props, {
+                      showPercentage: true,
+                      percentageTotal: quarterTotal
+                    });
                   }}
                 />
               </Bar>
@@ -1622,7 +1584,7 @@ export default function Dashboard() {
           <BarChart
             data={costByGLAccount}
             layout="horizontal"
-            margin={{ top: 30, right: 30, left: 20, bottom: 100 }}
+            margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
           >
             <CartesianGrid {...CHART_STYLES.grid} />
             <XAxis
@@ -1654,34 +1616,10 @@ export default function Dashboard() {
               <LabelList
                 position="top"
                 content={(props) => {
-                  const { x, y, width, value, index } = props;
-                  // Use totalAllGLCost for percentage calculation
-                  const percentage =
-                    totalAllGLCost > 0
-                      ? ((value / totalAllGLCost) * 100).toFixed(1)
-                      : "0";
-                  return (
-                    <g>
-                      <text
-                        x={x + width / 2}
-                        y={y - 20}
-                        fill="#333"
-                        textAnchor="middle"
-                        style={{ fontWeight: "bold", fontSize: 10 }}
-                      >
-                        {formatCurrency(value || 0, true)}
-                      </text>
-                      <text
-                        x={x + width / 2}
-                        y={y - 8}
-                        fill="#666"
-                        textAnchor="middle"
-                        style={{ fontSize: 9 }}
-                      >
-                        {percentage}%
-                      </text>
-                    </g>
-                  );
+                  return renderBarLabel(props, {
+                    showPercentage: true,
+                    percentageTotal: totalAllGLCost
+                  });
                 }}
               />
               {costByGLAccount.map((entry, index) => (
