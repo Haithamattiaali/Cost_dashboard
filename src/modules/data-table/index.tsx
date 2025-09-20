@@ -685,9 +685,17 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    setColumnFilters([]);
+    // Clear all column filters (including search inputs and dropdown filters)
+    table.getAllColumns().forEach(column => {
+      column.setFilterValue(undefined);
+    });
+    // Clear global filter
     setGlobalFilter('');
-  }, []);
+    // Clear the column filters state
+    setColumnFilters([]);
+    // Clear all row selections (checkboxes)
+    table.resetRowSelection();
+  }, [table]);
 
   // Export handlers
   const handleExportCSV = useCallback(() => {
