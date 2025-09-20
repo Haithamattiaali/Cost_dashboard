@@ -542,7 +542,6 @@ export const DataTable: React.FC<DataTableProps> = ({
         size: col.width || 150,
         enableSorting: col.enableSorting !== false,
         enableColumnFilter: col.enableFiltering !== false,
-        filterFn: multiSelectFilter,
       })),
     ],
     [columns, data, activeFilterColumn]
@@ -568,6 +567,7 @@ export const DataTable: React.FC<DataTableProps> = ({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
+    globalFilterFn: 'includesString',
     initialState: {
       pagination: {
         pageSize,
@@ -716,7 +716,13 @@ export const DataTable: React.FC<DataTableProps> = ({
                     <input
                       type="text"
                       value={(table.getColumn(col.id)?.getFilterValue() ?? '') as string}
-                      onChange={e => table.getColumn(col.id)?.setFilterValue(e.target.value)}
+                      onChange={e => {
+                        const value = e.target.value;
+                        table.getColumn(col.id)?.setFilterValue(value || undefined);
+                      }}
+                      onKeyDown={e => {
+                        e.stopPropagation();
+                      }}
                       placeholder="Search..."
                       className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:border-[#9e1f63] focus:ring-1 focus:ring-[#9e1f63]/20"
                     />
