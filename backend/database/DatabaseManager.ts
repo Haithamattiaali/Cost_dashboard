@@ -103,7 +103,9 @@ export class DatabaseManager {
       'CREATE INDEX IF NOT EXISTS idx_warehouse ON cost_data(warehouse)',
       'CREATE INDEX IF NOT EXISTS idx_cost_type ON cost_data(cost_type)',
       'CREATE INDEX IF NOT EXISTS idx_opex_capex ON cost_data(opex_capex)',
-      'CREATE INDEX IF NOT EXISTS idx_tco_categories ON cost_data(tco_model_categories)'
+      'CREATE INDEX IF NOT EXISTS idx_tco_categories ON cost_data(tco_model_categories)',
+      // Unique constraint to prevent duplicate entries for same GL account in same quarter
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_entry ON cost_data(year, quarter, gl_account_no, warehouse, type)'
     ];
 
     const createUploadHistorySQL = `
@@ -162,7 +164,7 @@ export class DatabaseManager {
       }
 
       const sql = `
-        INSERT INTO cost_data (
+        INSERT OR REPLACE INTO cost_data (
           year, quarter, warehouse, type, gl_account_no, gl_account_name,
           gl_accounts_group, cost_type, tco_model_categories, main_categories,
           opex_capex, total_incurred_cost,
@@ -209,7 +211,7 @@ export class DatabaseManager {
       }
 
       const sql = `
-        INSERT INTO cost_data (
+        INSERT OR REPLACE INTO cost_data (
           year, quarter, warehouse, type, gl_account_no, gl_account_name,
           gl_accounts_group, cost_type, tco_model_categories, main_categories,
           opex_capex, total_incurred_cost,

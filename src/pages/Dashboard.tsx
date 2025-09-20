@@ -740,21 +740,24 @@ export default function Dashboard() {
           <ResponsiveContainer width="100%" height={450}>
             <BarChart
               data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
-                // Comparison mode: Merge data for side-by-side bars
-                costByQuarter?.map(q => ({
-                  ...q,
-                  period1Cost: firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value)?.totalCost || 0,
-                  period2Cost: secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value)?.totalCost || 0,
-                  growth: q.value === firstPeriod.quarter || q.value === secondPeriod.quarter ?
-                    calculateGrowth(
-                      firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value)?.totalCost || 0,
-                      secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value)?.totalCost || 0
-                    ) : null
-                })) :
+                // Comparison mode: Show each quarter with comparison data
+                costByQuarter?.map(q => {
+                  const period1Data = firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value);
+                  const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
+                  const period1Cost = period1Data?.totalCost || 0;
+                  const period2Cost = period2Data?.totalCost || 0;
+
+                  return {
+                    ...q,
+                    period1Cost,
+                    period2Cost,
+                    growth: calculateGrowth(period1Cost, period2Cost) // Show growth for ALL quarters
+                  };
+                }) :
                 // Normal mode
                 costByQuarter
               }
-              margin={{ top: 50, right: 30, left: 20, bottom: 20 }}
+              margin={{ top: 50, right: 30, left: 20, bottom: 80 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -808,8 +811,7 @@ export default function Dashboard() {
                         const dataPoint = props.payload;
                         if (!value || value === 0) return null;
 
-                        // Get growth for comparison quarters only
-                        const growth = dataPoint.growth;
+                        const growth = dataPoint?.growth;
 
                         return (
                           <g>
@@ -852,6 +854,29 @@ export default function Dashboard() {
                       }}
                     />
                   </Bar>
+
+                  {/* Overall growth percentage display */}
+                  {firstPeriod && secondPeriod && (
+                    <text
+                      x="50%"
+                      y={420}
+                      textAnchor="middle"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 'bold',
+                        fill: PROCEED_COLORS.primary
+                      }}
+                    >
+                      Overall Growth: {calculateGrowth(
+                        firstPeriodMetrics.totalCost,
+                        secondPeriodMetrics.totalCost
+                      ) >= 0 ? '↑' : '↓'}
+                      {Math.abs(calculateGrowth(
+                        firstPeriodMetrics.totalCost,
+                        secondPeriodMetrics.totalCost
+                      )).toFixed(1)}%
+                    </text>
+                  )}
                 </>
               ) : (
                 <Bar
@@ -881,13 +906,154 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             OPEX vs CAPEX Breakdown
-            {comparisonMode && secondPeriodMetrics && (
+            {comparisonMode && (
               <span className="text-sm font-normal ml-3 text-gray-600">
-                (Period 2: {secondPeriod?.quarter})
+                (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
-          <ResponsiveContainer width="100%" height={400}>
+          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <div className="grid grid-cols-2 gap-4">
+              {/* Period 1 Pie */}
+              <div>
+                <h4 className="text-center text-sm font-semibold mb-2">Period 1: {firstPeriod?.quarter}</h4>
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "OPEX", value: firstPeriodMetrics.totalOpex || 0 },
+                        { name: "CAPEX", value: firstPeriodMetrics.totalCapex || 0 },
+                      ].filter((item) => item.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(props) => {
+                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                        return (
+                          <g>
+                            <text
+                              x={x}
+                              y={y - 8}
+                              fill="white"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              style={{ fontWeight: 'bold', fontSize: 14 }}
+                            >
+                              {formatCurrency(value, true).replace('SAR ', '')}
+                            </text>
+                            <text
+                              x={x}
+                              y={y + 8}
+                              fill="white"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              style={{ fontWeight: 'bold', fontSize: 12 }}
+                            >
+                              ({(percent * 100).toFixed(1)}%)
+                            </text>
+                          </g>
+                        );
+                      }}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        { name: "OPEX", value: firstPeriodMetrics.totalOpex || 0 },
+                        { name: "CAPEX", value: firstPeriodMetrics.totalCapex || 0 },
+                      ].filter((item) => item.value > 0)
+                        .map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent} />
+                        ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Period 2 Pie */}
+              <div>
+                <h4 className="text-center text-sm font-semibold mb-2">
+                  Period 2: {secondPeriod?.quarter}
+                  <span className={`ml-2 ${
+                    calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
+                                   secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex) >= 0
+                      ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    ({calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
+                                    secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
+                    {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
+                                            secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex)).toFixed(1)}%)
+                  </span>
+                </h4>
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "OPEX", value: secondPeriodMetrics.totalOpex || 0 },
+                        { name: "CAPEX", value: secondPeriodMetrics.totalCapex || 0 },
+                      ].filter((item) => item.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(props) => {
+                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                        return (
+                          <g>
+                            <text
+                              x={x}
+                              y={y - 8}
+                              fill="white"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              style={{ fontWeight: 'bold', fontSize: 14 }}
+                            >
+                              {formatCurrency(value, true).replace('SAR ', '')}
+                            </text>
+                            <text
+                              x={x}
+                              y={y + 8}
+                              fill="white"
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              style={{ fontWeight: 'bold', fontSize: 12 }}
+                            >
+                              ({(percent * 100).toFixed(1)}%)
+                            </text>
+                          </g>
+                        );
+                      }}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {[
+                        { name: "OPEX", value: secondPeriodMetrics.totalOpex || 0 },
+                        { name: "CAPEX", value: secondPeriodMetrics.totalCapex || 0 },
+                      ].filter((item) => item.value > 0)
+                        .map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent} />
+                        ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={[
@@ -1079,19 +1245,169 @@ export default function Dashboard() {
               />
             </PieChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         {/* Warehouse vs Transportation Pie Chart */}
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Warehouse vs Transportation Cost
-            {comparisonMode && secondPeriodMetrics && (
+            {comparisonMode && (
               <span className="text-sm font-normal ml-3 text-gray-600">
-                (Period 2: {secondPeriod?.quarter})
+                (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
-          <ResponsiveContainer width="100%" height={400}>
+          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <div className="grid grid-cols-2 gap-4">
+              {/* Period 1 Pie */}
+              <div>
+                <h4 className="text-center text-sm font-semibold mb-2">Period 1: {firstPeriod?.quarter}</h4>
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={(() => {
+                        const warehouseTotal = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const transportationTotal = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        return [
+                          { name: "Warehouse", value: warehouseTotal },
+                          { name: "Transportation", value: transportationTotal },
+                        ].filter((item) => item.value > 0);
+                      })()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(props) => {
+                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <g>
+                            <text x={x} y={y - 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                                  style={{ fontWeight: 'bold', fontSize: 14 }}>
+                              {formatCurrency(value, true).replace('SAR ', '')}
+                            </text>
+                            <text x={x} y={y + 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                                  style={{ fontWeight: 'bold', fontSize: 12 }}>
+                              ({(percent * 100).toFixed(1)}%)
+                            </text>
+                          </g>
+                        );
+                      }}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {(() => {
+                        const warehouseTotal = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const transportationTotal = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        return [
+                          { name: "Warehouse", value: warehouseTotal },
+                          { name: "Transportation", value: transportationTotal },
+                        ];
+                      })().filter((item) => item.value > 0)
+                        .map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.primary : PROCEED_COLORS.secondary} />
+                        ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Period 2 Pie */}
+              <div>
+                <h4 className="text-center text-sm font-semibold mb-2">
+                  Period 2: {secondPeriod?.quarter}
+                  <span className={`ml-2 ${(() => {
+                    const p1Total = (firstPeriodMetrics.costByQuarter?.reduce(
+                      (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
+                      (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
+                    const p2Total = (secondPeriodMetrics.costByQuarter?.reduce(
+                      (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
+                      (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
+                    return calculateGrowth(p1Total, p2Total) >= 0 ? 'text-red-600' : 'text-green-600';
+                  })()}`}>
+                    ({(() => {
+                      const p1Total = (firstPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
+                        (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
+                      const p2Total = (secondPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
+                        (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
+                      const growth = calculateGrowth(p1Total, p2Total);
+                      return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
+                    })()})
+                  </span>
+                </h4>
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={(() => {
+                        const warehouseTotal = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const transportationTotal = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        return [
+                          { name: "Warehouse", value: warehouseTotal },
+                          { name: "Transportation", value: transportationTotal },
+                        ].filter((item) => item.value > 0);
+                      })()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(props) => {
+                        const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } = props;
+                        const RADIAN = Math.PI / 180;
+                        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <g>
+                            <text x={x} y={y - 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                                  style={{ fontWeight: 'bold', fontSize: 14 }}>
+                              {formatCurrency(value, true).replace('SAR ', '')}
+                            </text>
+                            <text x={x} y={y + 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                                  style={{ fontWeight: 'bold', fontSize: 12 }}>
+                              ({(percent * 100).toFixed(1)}%)
+                            </text>
+                          </g>
+                        );
+                      }}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {(() => {
+                        const warehouseTotal = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const transportationTotal = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        return [
+                          { name: "Warehouse", value: warehouseTotal },
+                          { name: "Transportation", value: transportationTotal },
+                        ];
+                      })().filter((item) => item.value > 0)
+                        .map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.primary : PROCEED_COLORS.secondary} />
+                        ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={(() => {
@@ -1327,6 +1643,7 @@ export default function Dashboard() {
               />
             </PieChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -1335,19 +1652,33 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Damasco Operations vs PROCEED 3PL
-            {comparisonMode && secondPeriodMetrics && (
+            {comparisonMode && (
               <span className="text-sm font-normal ml-3 text-gray-600">
-                (Period 2: {secondPeriod?.quarter})
+                (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
           <ResponsiveContainer width="100%" height={350}>
-            <BarChart
-              data={(() => {
-                // Use comparison mode data if enabled
-                const dataSource = comparisonMode && secondPeriodMetrics
-                  ? secondPeriodMetrics.costByQuarter
-                  : costByQuarter;
+            <ComposedChart
+              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+                // Comparison mode: side-by-side columns for P1 and P2
+                [
+                  {
+                    name: "Damasco Operations",
+                    period1: firstPeriodMetrics.dmascoTotal || 0,
+                    period2: secondPeriodMetrics.dmascoTotal || 0,
+                    growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
+                  },
+                  {
+                    name: "PROCEED 3PL",
+                    period1: firstPeriodMetrics.proceed3PLTotal || 0,
+                    period2: secondPeriodMetrics.proceed3PLTotal || 0,
+                    growth: calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)
+                  }
+                ] :
+                // Normal mode
+                (() => {
+                  const dataSource = costByQuarter;
 
                 const pharmaciesTotal =
                   dataSource?.reduce(
@@ -1464,7 +1795,67 @@ export default function Dashboard() {
                   return null;
                 }}
               />
-              <Bar dataKey="total" name="Total Cost">
+              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+                <>
+                  <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
+                  <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
+                    <LabelList
+                      position="top"
+                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                    />
+                  </Bar>
+                  <Bar dataKey="period2" name={`Period 2 (${secondPeriod?.quarter})`} fill={PROCEED_COLORS.primary}>
+                    <LabelList
+                      position="top"
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        const dataPoint = props.payload;
+                        if (!value || value === 0) return null;
+
+                        return (
+                          <g>
+                            <text
+                              x={x + width / 2}
+                              y={y - 15}
+                              fill={LABEL_CONFIG.colors.value}
+                              textAnchor="middle"
+                              stroke="white"
+                              strokeWidth={3}
+                              paintOrder="stroke"
+                              style={{
+                                fontWeight: 'bold',
+                                fontSize: LABEL_CONFIG.fontSize.value,
+                                fontFamily: LABEL_CONFIG.fonts.value
+                              }}
+                            >
+                              {formatCurrency(value, true)}
+                            </text>
+                            {dataPoint?.growth !== null && dataPoint?.growth !== undefined && (
+                              <text
+                                x={x + width / 2}
+                                y={y - 2}
+                                fill={dataPoint.growth >= 0 ? '#e05e3d' : '#10b981'}
+                                textAnchor="middle"
+                                stroke="white"
+                                strokeWidth={2}
+                                paintOrder="stroke"
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                }}
+                              >
+                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </>
+              ) : (
+                <Bar dataKey="total" name="Total Cost">
                 <LabelList
                   position="top"
                   content={(props) => {
@@ -1509,7 +1900,8 @@ export default function Dashboard() {
                 <Cell fill={PROCEED_COLORS.darkRed} />
                 <Cell fill={PROCEED_COLORS.blue} />
               </Bar>
-            </BarChart>
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
@@ -1517,25 +1909,63 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Department Cost Trend
-            {comparisonMode && secondPeriodMetrics && (
+            {comparisonMode && (
               <span className="text-sm font-normal ml-3 text-gray-600">
-                (Period 2: {secondPeriod?.quarter})
+                (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
           <ResponsiveContainer width="100%" height={400}>
-            <BarChart
-              data={(comparisonMode && secondPeriodMetrics
-                ? secondPeriodMetrics.costByQuarter
-                : costByQuarter
-              )?.map((q) => ({
-                quarter: q.value.toUpperCase(),
-                Pharmacies: q.pharmaciesCost || 0,
-                Distribution: q.distributionCost || 0,
-                "Last Mile": q.lastMileCost || 0,
-                "PROCEED 3PL":
-                  (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0),
-              }))}
+            <ComposedChart
+              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics
+                ? // Comparison mode: side-by-side columns for each department
+                [
+                  {
+                    name: "Pharmacies",
+                    period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                    period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                    growth: calculateGrowth(
+                      firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0,
+                      secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.pharmaciesCost || 0), 0) || 0
+                    )
+                  },
+                  {
+                    name: "Distribution",
+                    period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                    period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                    growth: calculateGrowth(
+                      firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0,
+                      secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.distributionCost || 0), 0) || 0
+                    )
+                  },
+                  {
+                    name: "Last Mile",
+                    period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                    period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                    growth: calculateGrowth(
+                      firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0,
+                      secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.lastMileCost || 0), 0) || 0
+                    )
+                  },
+                  {
+                    name: "PROCEED 3PL",
+                    period1: firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                    period2: secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                    growth: calculateGrowth(
+                      firstPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0,
+                      secondPeriodMetrics.costByQuarter?.reduce((sum: number, q: any) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0
+                    )
+                  }
+                ]
+                : // Normal mode
+                costByQuarter?.map((q) => ({
+                  quarter: q.value.toUpperCase(),
+                  Pharmacies: q.pharmaciesCost || 0,
+                  Distribution: q.distributionCost || 0,
+                  "Last Mile": q.lastMileCost || 0,
+                  "PROCEED 3PL": (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0),
+                }))
+              }
               margin={{ top: 50, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
@@ -1561,6 +1991,66 @@ export default function Dashboard() {
                 labelStyle={CHART_STYLES.tooltip.labelStyle}
               />
               <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
+              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+                <>
+                  <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
+                    <LabelList
+                      position="top"
+                      content={(props) => renderBarLabel(props, { showPercentage: false })}
+                    />
+                  </Bar>
+                  <Bar dataKey="period2" name={`Period 2 (${secondPeriod?.quarter})`} fill={PROCEED_COLORS.primary}>
+                    <LabelList
+                      position="top"
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        const dataPoint = props.payload;
+                        if (!value || value === 0) return null;
+
+                        return (
+                          <g>
+                            <text
+                              x={x + width / 2}
+                              y={y - 15}
+                              fill={LABEL_CONFIG.colors.value}
+                              textAnchor="middle"
+                              stroke="white"
+                              strokeWidth={3}
+                              paintOrder="stroke"
+                              style={{
+                                fontWeight: 'bold',
+                                fontSize: LABEL_CONFIG.fontSize.value,
+                                fontFamily: LABEL_CONFIG.fonts.value
+                              }}
+                            >
+                              {formatCurrency(value, true)}
+                            </text>
+                            {dataPoint?.growth !== null && dataPoint?.growth !== undefined && (
+                              <text
+                                x={x + width / 2}
+                                y={y - 2}
+                                fill={dataPoint.growth >= 0 ? '#e05e3d' : '#10b981'}
+                                textAnchor="middle"
+                                stroke="white"
+                                strokeWidth={2}
+                                paintOrder="stroke"
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  fontFamily: LABEL_CONFIG.fonts.percentage
+                                }}
+                              >
+                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </>
+              ) : (
+              <>
               <Bar dataKey="Pharmacies" fill={PROCEED_COLORS.primary}>
                 <LabelList
                   position="top"
@@ -1645,67 +2135,152 @@ export default function Dashboard() {
                   }}
                 />
               </Bar>
-            </BarChart>
+              </>
+              )}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* TCO Model Categories Treemap - Full Width */}
+      {/* TCO Model Categories - Full Width */}
       <div className="chart-container">
         <h3 className="text-lg font-semibold mb-4">
           TCO Model Categories
-          {comparisonMode && secondPeriodMetrics && (
+          {comparisonMode && (
             <span className="text-sm font-normal ml-3 text-gray-600">
-              (Period 2: {secondPeriod?.quarter})
+              (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
             </span>
           )}
         </h3>
         <ResponsiveContainer width="100%" height={600}>
-          <Treemap
-            data={(() => {
-              // Use comparison mode data if enabled
-              const dataSource = comparisonMode && secondPeriodMetrics
-                ? secondPeriodMetrics.topExpenses
-                : metrics?.topExpenses;
+          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <LineChart
+              data={(() => {
+                // Get TCO categories from both periods
+                const categoriesP1: { [key: string]: number } = {};
+                const categoriesP2: { [key: string]: number } = {};
 
-              // Aggregate costs by TCO Model Categories
-              const tcoCategories: { [key: string]: number } = {};
+                // Aggregate Period 1 data
+                firstPeriodMetrics.topExpenses?.forEach((item: any) => {
+                  const category = item.tcoModelCategories || "Uncategorized";
+                  const cost = parseFloat(item.totalIncurredCost) || 0;
+                  categoriesP1[category] = (categoriesP1[category] || 0) + cost;
+                });
 
-              dataSource?.forEach((item: any) => {
-                const category = item.tcoModelCategories || "Uncategorized";
-                const cost = parseFloat(item.totalIncurredCost) || 0;
+                // Aggregate Period 2 data
+                secondPeriodMetrics.topExpenses?.forEach((item: any) => {
+                  const category = item.tcoModelCategories || "Uncategorized";
+                  const cost = parseFloat(item.totalIncurredCost) || 0;
+                  categoriesP2[category] = (categoriesP2[category] || 0) + cost;
+                });
 
-                if (tcoCategories[category]) {
-                  tcoCategories[category] += cost;
-                } else {
-                  tcoCategories[category] = cost;
-                }
-              });
+                // Get all unique categories
+                const allCategories = [...new Set([...Object.keys(categoriesP1), ...Object.keys(categoriesP2)])];
 
-              // Calculate total for percentages
-              const total = Object.values(tcoCategories).reduce(
-                (sum, val) => sum + val,
-                0,
-              );
+                // Create line chart data with both periods
+                return allCategories
+                  .map(category => ({
+                    name: category,
+                    period1: categoriesP1[category] || 0,
+                    period2: categoriesP2[category] || 0,
+                    growth: calculateGrowth(categoriesP1[category] || 0, categoriesP2[category] || 0)
+                  }))
+                  .sort((a, b) => b.period2 - a.period2) // Sort by Period 2 values
+                  .slice(0, 10); // Show top 10 categories
+              })()}
+              margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
+            >
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={140}
+                interval={0}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontSize: 11,
+                  fontWeight: 600
+                }}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={90}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={CHART_STYLES.tooltip.contentStyle}
+                labelStyle={CHART_STYLES.tooltip.labelStyle}
+              />
+              <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
+              <Line
+                type="monotone"
+                dataKey="period1"
+                name={`Period 1 (${firstPeriod?.quarter})`}
+                stroke={PROCEED_COLORS.secondary}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="period2"
+                name={`Period 2 (${secondPeriod?.quarter})`}
+                stroke={PROCEED_COLORS.primary}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                label={{
+                  position: 'top',
+                  content: (props: any) => {
+                    const { x, y, payload } = props;
+                    if (!payload?.growth) return null;
+                    return (
+                      <text
+                        x={x}
+                        y={y - 10}
+                        fill={payload.growth >= 0 ? '#e05e3d' : '#10b981'}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fontWeight={600}
+                      >
+                        {payload.growth >= 0 ? '↑' : '↓'}{Math.abs(payload.growth).toFixed(1)}%
+                      </text>
+                    );
+                  }
+                }}
+              />
+            </LineChart>
+          ) : (
+            <Treemap
+              data={(() => {
+                // Normal mode - use Treemap
+                const dataSource = metrics?.topExpenses;
+                const tcoCategories: { [key: string]: number } = {};
 
-              // Convert to treemap data format and sort by value
-              const treeData = Object.entries(tcoCategories)
-                .map(([name, value], index) => ({
-                  name,
-                  value,
-                  fill: getBrandColor(index),
-                  percentage:
-                    total > 0 ? ((value / total) * 100).toFixed(1) : "0",
-                }))
-                .sort((a, b) => b.value - a.value);
+                dataSource?.forEach((item: any) => {
+                  const category = item.tcoModelCategories || "Uncategorized";
+                  const cost = parseFloat(item.totalIncurredCost) || 0;
+                  tcoCategories[category] = (tcoCategories[category] || 0) + cost;
+                });
 
-              return treeData;
-            })()}
-            dataKey="value"
-            aspectRatio={4 / 3}
-            stroke="#fff"
-            strokeWidth={2}
-            content={({
+                const total = Object.values(tcoCategories).reduce((sum, val) => sum + val, 0);
+                return Object.entries(tcoCategories)
+                  .map(([name, value], index) => ({
+                    name,
+                    value,
+                    fill: getBrandColor(index),
+                    percentage: total > 0 ? ((value / total) * 100).toFixed(1) : "0",
+                  }))
+                  .sort((a, b) => b.value - a.value);
+              })()}
+              dataKey="value"
+              aspectRatio={4 / 3}
+              stroke="#fff"
+              strokeWidth={2}
+              content={({
               x,
               y,
               width,
@@ -1917,6 +2492,7 @@ export default function Dashboard() {
               wrapperStyle={{ zIndex: 1000 }}
             />
           </Treemap>
+          )}
         </ResponsiveContainer>
         <div className="text-sm text-gray-600 mt-2 text-center">
           Total TCO Categories:{" "}
@@ -1947,9 +2523,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">
             GL Accounts by Total Cost
-            {comparisonMode && secondPeriodMetrics && (
+            {comparisonMode && (
               <span className="text-sm font-normal ml-3 text-gray-600">
-                (Period 2: {secondPeriod?.quarter})
+                (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
@@ -1970,38 +2546,135 @@ export default function Dashboard() {
           </div>
         </div>
         <ResponsiveContainer width="100%" height={500}>
-          <BarChart
-            data={costByGLAccount}
-            layout="horizontal"
-            margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
-          >
-            <CartesianGrid {...CHART_STYLES.grid} />
-            <XAxis
-              dataKey="name"
-              angle={-45}
-              textAnchor="end"
-              height={140}
-              interval={0}
-              tick={{
-                ...CHART_STYLES.tick,
-                fontSize: 12,
-                fontWeight: 600
-              }}
-            />
-            <YAxis
-              tickFormatter={(value) => formatCurrency(value, true)}
-              tick={{
-                ...CHART_STYLES.tick,
-                fontWeight: 500
-              }}
-              width={90}
-            />
-            <Tooltip
-              formatter={(value) => formatCurrency(value as number)}
-              contentStyle={CHART_STYLES.tooltip.contentStyle}
-              labelStyle={CHART_STYLES.tooltip.labelStyle}
-            />
-            <Bar dataKey="totalCost" name="Total Cost">
+          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+            <LineChart
+              data={(() => {
+                // Get GL accounts from both periods
+                const glAccountsP1: { [key: string]: number } = {};
+                const glAccountsP2: { [key: string]: number } = {};
+
+                // Aggregate Period 1 data
+                firstPeriodMetrics.costByGLAccount?.forEach((item: any) => {
+                  glAccountsP1[item.value] = item.totalCost;
+                });
+
+                // Aggregate Period 2 data
+                secondPeriodMetrics.costByGLAccount?.forEach((item: any) => {
+                  glAccountsP2[item.value] = item.totalCost;
+                });
+
+                // Get all unique GL accounts
+                const allAccounts = [...new Set([...Object.keys(glAccountsP1), ...Object.keys(glAccountsP2)])];
+
+                // Create line chart data with both periods
+                return allAccounts
+                  .map(account => ({
+                    name: account,
+                    period1: glAccountsP1[account] || 0,
+                    period2: glAccountsP2[account] || 0,
+                    growth: calculateGrowth(glAccountsP1[account] || 0, glAccountsP2[account] || 0)
+                  }))
+                  .sort((a, b) => b.period2 - a.period2) // Sort by Period 2 values
+                  .slice(0, 15); // Show top 15 accounts
+              })()}
+              margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
+            >
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={140}
+                interval={0}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontSize: 11,
+                  fontWeight: 600
+                }}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={90}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={CHART_STYLES.tooltip.contentStyle}
+                labelStyle={CHART_STYLES.tooltip.labelStyle}
+              />
+              <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
+              <Line
+                type="monotone"
+                dataKey="period1"
+                name={`Period 1 (${firstPeriod?.quarter})`}
+                stroke={PROCEED_COLORS.secondary}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="period2"
+                name={`Period 2 (${secondPeriod?.quarter})`}
+                stroke={PROCEED_COLORS.primary}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                label={{
+                  position: 'top',
+                  content: (props: any) => {
+                    const { x, y, payload } = props;
+                    if (!payload?.growth) return null;
+                    return (
+                      <text
+                        x={x}
+                        y={y - 10}
+                        fill={payload.growth >= 0 ? '#e05e3d' : '#10b981'}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fontWeight={600}
+                      >
+                        {payload.growth >= 0 ? '↑' : '↓'}{Math.abs(payload.growth).toFixed(1)}%
+                      </text>
+                    );
+                  }
+                }}
+              />
+            </LineChart>
+          ) : (
+            <BarChart
+              data={costByGLAccount}
+              layout="horizontal"
+              margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
+            >
+              <CartesianGrid {...CHART_STYLES.grid} />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={140}
+                interval={0}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              />
+              <YAxis
+                tickFormatter={(value) => formatCurrency(value, true)}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={90}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={CHART_STYLES.tooltip.contentStyle}
+                labelStyle={CHART_STYLES.tooltip.labelStyle}
+              />
+              <Bar dataKey="totalCost" name="Total Cost">
               <LabelList
                 position="top"
                 content={(props) => {
@@ -2021,6 +2694,7 @@ export default function Dashboard() {
               ))}
             </Bar>
           </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
 
