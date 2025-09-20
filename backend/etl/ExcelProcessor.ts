@@ -71,7 +71,18 @@ export class ExcelProcessor {
 
       const jsonData = XLSX.utils.sheet_to_json<any>(sheet);
 
-      this.data = jsonData.map(row => this.transformRow(row));
+      // Filter out empty rows before transformation
+      // A row is considered empty if it has no Year and no quarter
+      const filteredData = jsonData.filter(row => {
+        // Check if row has meaningful data - at least Year or quarter should exist
+        const hasYear = row['Year'] !== null && row['Year'] !== undefined && row['Year'] !== '';
+        const hasQuarter = row['quarter'] !== null && row['quarter'] !== undefined && row['quarter'] !== '';
+
+        // Row must have at least Year and quarter to be valid
+        return hasYear && hasQuarter;
+      });
+
+      this.data = filteredData.map(row => this.transformRow(row));
 
       return { success: true, data: this.data };
     } catch (error) {
