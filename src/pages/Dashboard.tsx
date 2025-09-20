@@ -214,11 +214,12 @@ const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
       accessorKey: 'totalIncurredCost',
       dataType: 'currency',
       width: 120,
-      formatter: (value) => formatCurrency(value)
+      formatter: (value) => formatCurrency(value),
+      enableAggregation: true
     }
   ], []);
 
-  // Render the simplified DataTable
+  // Render the enhanced DataTable with all Excel-like features
   return (
     <DataTable
       data={data}
@@ -226,6 +227,8 @@ const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
       pageSize={50}
       enablePagination={true}
       enableColumnVisibility={true}
+      enableExport={true}
+      enableAggregation={true}
       className="mt-4"
     />
   );
