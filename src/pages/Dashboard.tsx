@@ -746,12 +746,17 @@ export default function Dashboard() {
                   const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
                   const period1Cost = period1Data?.totalCost || 0;
                   const period2Cost = period2Data?.totalCost || 0;
+                  const growth = calculateGrowth(period1Cost, period2Cost);
 
                   return {
                     ...q,
                     period1Cost,
                     period2Cost,
-                    growth: calculateGrowth(period1Cost, period2Cost) // Show growth for ALL quarters
+                    growth, // Show growth for ALL quarters
+                    // Add formatted labels for easy access in LabelList
+                    period2Label: period2Cost > 0 ? formatCurrency(period2Cost, true) : null,
+                    growthLabel: growth !== null && growth !== undefined ?
+                      `${growth > 0 ? '↑' : growth < 0 ? '↓' : ''} ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%` : null
                   };
                 }) :
                 // Normal mode
@@ -826,71 +831,57 @@ export default function Dashboard() {
                     name={`Period 2 (${secondPeriod?.quarter})`}
                     fill={PROCEED_COLORS.primary}
                   >
+                    {/* First LabelList for the value */}
+                    <LabelList
+                      dataKey="period2Cost"
+                      position="top"
+                      content={(props) => {
+                        const { x, y, width, value } = props;
+                        if (!value || value === 0) return null;
+
+                        return (
+                          <text
+                            x={x + width / 2}
+                            y={y - 8}
+                            fill={LABEL_CONFIG.colors.value}
+                            textAnchor="middle"
+                            stroke="white"
+                            strokeWidth={3}
+                            paintOrder="stroke"
+                            style={{
+                              fontWeight: 'bold',
+                              fontSize: LABEL_CONFIG.fontSize.value,
+                              fontFamily: LABEL_CONFIG.fonts.value
+                            }}
+                          >
+                            {formatCurrency(value, true)}
+                          </text>
+                        );
+                      }}
+                    />
+                    {/* Second LabelList for the growth percentage */}
                     <LabelList
                       position="top"
                       content={(props) => {
-                        const { x, y, width, value, index } = props;
-                        if (!value || value === 0) return null;
-
-                        // Reconstruct the data array to access growth values
-                        const quarterData = costByQuarter?.map(q => {
-                          const period1Data = firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value);
-                          const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
-                          const period1Cost = period1Data?.totalCost || 0;
-                          const period2Cost = period2Data?.totalCost || 0;
-
-                          return {
-                            quarter: q.value,
-                            period1Cost,
-                            period2Cost,
-                            growth: calculateGrowth(period1Cost, period2Cost)
-                          };
-                        });
-
-                        const dataPoint = quarterData?.[index];
-                        const growth = dataPoint?.growth;
+                        const { x, y, width, payload } = props;
+                        // Access growth value from the data point
+                        const growthValue = payload?.growth;
+                        if (growthValue === null || growthValue === undefined) return null;
 
                         return (
-                          <g>
-                            {/* Value label */}
-                            <text
-                              x={x + width / 2}
-                              y={y - 18}
-                              fill="#1a1a1a"
-                              textAnchor="middle"
-                              stroke="white"
-                              strokeWidth={3}
-                              paintOrder="stroke"
-                              style={{
-                                fontWeight: 700,
-                                fontSize: 12,
-                                fontFamily: LABEL_CONFIG.fonts.value,
-                                letterSpacing: '-0.02em'
-                              }}
-                            >
-                              {formatCurrency(value, true)}
-                            </text>
-                            {/* Growth percentage */}
-                            {growth !== null && growth !== undefined && (
-                              <text
-                                x={x + width / 2}
-                                y={y - 5}
-                                fill={growth > 0 ? '#dc2626' : growth < 0 ? '#16a34a' : '#6b7280'}
-                                textAnchor="middle"
-                                stroke="white"
-                                strokeWidth={2.5}
-                                paintOrder="stroke"
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  fontFamily: LABEL_CONFIG.fonts.percentage,
-                                  letterSpacing: '-0.01em'
-                                }}
-                              >
-                                {growth > 0 ? '↑' : growth < 0 ? '↓' : ''}{growth > 0 ? '+' : ''}{growth.toFixed(1)}%
-                              </text>
-                            )}
-                          </g>
+                          <text
+                            x={x + width / 2}
+                            y={y - 25}
+                            fill={growthValue > 0 ? '#dc2626' : growthValue < 0 ? '#16a34a' : '#6b7280'}
+                            textAnchor="middle"
+                            fontSize={11}
+                            fontWeight={700}
+                            stroke="white"
+                            strokeWidth={2}
+                            paintOrder="stroke"
+                          >
+                            {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''} ${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}%`}
+                          </text>
                         );
                       }}
                     />
