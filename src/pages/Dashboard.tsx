@@ -410,7 +410,16 @@ export default function Dashboard() {
 
   // Calculate growth percentage
   const calculateGrowth = (period1Value: number, period2Value: number) => {
-    if (period1Value === 0) return 0;
+    // If both are 0, no change
+    if (period1Value === 0 && period2Value === 0) return 0;
+
+    // If period1 is 0 but period2 has value, it's infinite growth - show as 100%
+    if (period1Value === 0 && period2Value > 0) return 100;
+
+    // If period2 is 0 but period1 had value, it's -100% (cost eliminated)
+    if (period2Value === 0 && period1Value > 0) return -100;
+
+    // Normal calculation
     return ((period2Value - period1Value) / period1Value) * 100;
   };
 
@@ -861,11 +870,35 @@ export default function Dashboard() {
                     />
                     {/* Second LabelList for the growth percentage */}
                     <LabelList
+                      dataKey="growth"
                       position="top"
                       content={(props) => {
-                        const { x, y, width, payload } = props;
-                        // Access growth value from the data point
-                        const growthValue = payload?.growth;
+                        const { x, y, width, index } = props;
+                        // Calculate growth based on total period costs, not individual quarters
+                        const period1Total = firstPeriodMetrics?.totalCost || 0;
+                        const period2Total = secondPeriodMetrics?.totalCost || 0;
+                        const overallGrowth = calculateGrowth(period1Total, period2Total);
+
+                        // Apply the same growth to all Period 2 bars
+                        const chartData = comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+                          costByQuarter?.map(q => {
+                            const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
+                            const period2Cost = period2Data?.totalCost || 0;
+
+                            return {
+                              quarter: q.value,
+                              period2Cost,
+                              growth: period2Cost > 0 ? overallGrowth : null  // Only show growth on quarters that have Period 2 data
+                            };
+                          }) : [];
+
+                        const dataPoint = chartData?.[index];
+                        const growthValue = dataPoint?.growth;
+
+                        // Don't show if period2 has no data
+                        if (dataPoint?.period2Cost === 0) return null;
+
+                        // Don't show if no growth value
                         if (growthValue === null || growthValue === undefined) return null;
 
                         return (
@@ -880,7 +913,7 @@ export default function Dashboard() {
                             strokeWidth={2}
                             paintOrder="stroke"
                           >
-                            {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''} ${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}%`}
+                            {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''}${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}%`}
                           </text>
                         );
                       }}
