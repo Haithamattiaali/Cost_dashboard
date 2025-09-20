@@ -542,6 +542,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         size: col.width || 150,
         enableSorting: col.enableSorting !== false,
         enableColumnFilter: col.enableFiltering !== false,
+        filterFn: multiSelectFilter,
       })),
     ],
     [columns, data, activeFilterColumn]
