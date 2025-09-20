@@ -390,7 +390,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-metrics-period1", firstPeriod],
     queryFn: () => fetchDashboardMetrics({
       year: firstPeriod?.year,
-      quarter: firstPeriod?.quarter
+      quarter: firstPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
     }),
     enabled: comparisonMode && firstPeriod !== null,
   });
@@ -403,7 +403,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-metrics-period2", secondPeriod],
     queryFn: () => fetchDashboardMetrics({
       year: secondPeriod?.year,
-      quarter: secondPeriod?.quarter
+      quarter: secondPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
     }),
     enabled: comparisonMode && secondPeriod !== null,
   });
@@ -547,9 +547,9 @@ export default function Dashboard() {
               onClick={() => {
                 setComparisonMode(!comparisonMode);
                 if (!comparisonMode) {
-                  // Initialize with default periods when enabling
-                  setFirstPeriod({ year: 2025, quarter: 'Q1' });
-                  setSecondPeriod({ year: 2025, quarter: 'Q2' });
+                  // Initialize with default periods when enabling (Q2 and Q3 have data)
+                  setFirstPeriod({ year: 2025, quarter: 'Q2' });
+                  setSecondPeriod({ year: 2025, quarter: 'Q3' });
                 }
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -1652,14 +1652,26 @@ export default function Dashboard() {
 
       {/* TCO Model Categories Treemap - Full Width */}
       <div className="chart-container">
-        <h3 className="text-lg font-semibold mb-4">TCO Model Categories</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          TCO Model Categories
+          {comparisonMode && secondPeriodMetrics && (
+            <span className="text-sm font-normal ml-3 text-gray-600">
+              (Period 2: {secondPeriod?.quarter})
+            </span>
+          )}
+        </h3>
         <ResponsiveContainer width="100%" height={600}>
           <Treemap
             data={(() => {
+              // Use comparison mode data if enabled
+              const dataSource = comparisonMode && secondPeriodMetrics
+                ? secondPeriodMetrics.topExpenses
+                : metrics?.topExpenses;
+
               // Aggregate costs by TCO Model Categories
               const tcoCategories: { [key: string]: number } = {};
 
-              metrics?.topExpenses?.forEach((item: any) => {
+              dataSource?.forEach((item: any) => {
                 const category = item.tcoModelCategories || "Uncategorized";
                 const cost = parseFloat(item.totalIncurredCost) || 0;
 
@@ -1912,14 +1924,21 @@ export default function Dashboard() {
             Object.keys(
               (() => {
                 const categories: { [key: string]: boolean } = {};
-                metrics?.topExpenses?.forEach((item: any) => {
+                const dataSource = comparisonMode && secondPeriodMetrics
+                  ? secondPeriodMetrics.topExpenses
+                  : metrics?.topExpenses;
+                dataSource?.forEach((item: any) => {
                   categories[item.tcoModelCategories || "Uncategorized"] = true;
                 });
                 return categories;
               })(),
             ).length
           }{" "}
-          | Total Items Analyzed: {metrics?.topExpenses?.length || 0}
+          | Total Items Analyzed: {
+            comparisonMode && secondPeriodMetrics
+              ? secondPeriodMetrics.topExpenses?.length || 0
+              : metrics?.topExpenses?.length || 0
+          }
         </div>
       </div>
 
@@ -2014,18 +2033,22 @@ export default function Dashboard() {
           </div>
         </div>
         {(() => {
+          const gridData = comparisonMode && secondPeriodMetrics
+            ? secondPeriodMetrics.topExpenses
+            : metrics?.topExpenses;
+
           console.log('[Dashboard] Data Grid section:', {
             hasMetrics: !!metrics,
-            hasTopExpenses: !!metrics?.topExpenses,
-            topExpensesLength: metrics?.topExpenses?.length || 0,
-            firstItem: metrics?.topExpenses?.[0],
-            willRenderGrid: metrics?.topExpenses && metrics.topExpenses.length > 0
+            hasTopExpenses: !!gridData,
+            topExpensesLength: gridData?.length || 0,
+            firstItem: gridData?.[0],
+            willRenderGrid: gridData && gridData.length > 0
           });
 
-          if (metrics?.topExpenses && metrics.topExpenses.length > 0) {
+          if (gridData && gridData.length > 0) {
             return (
               <>
-                <EnterpriseDataGrid data={metrics.topExpenses} />
+                <EnterpriseDataGrid data={gridData} />
               </>
             );
           } else {
