@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
@@ -35,6 +35,8 @@ import {
   formatValueWithPercentage,
   getLabelStyles
 } from "../modules/chart-labels";
+import { DataTable, DataTableColumn } from "../modules/data-table";
+import "../modules/data-table/styles.css";
 
 // PROCEED Brand Colors
 const PROCEED_COLORS = {
@@ -106,6 +108,129 @@ const CHART_STYLES = {
   },
 };
 
+// Enterprise Data Grid Component
+const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
+  // Log the incoming data
+  console.log('[EnterpriseDataGrid] Received data:', {
+    dataLength: data?.length,
+    firstItem: data?.[0],
+    dataType: typeof data,
+    isArray: Array.isArray(data)
+  });
+
+  // Define columns with simplified configuration
+  const columns: DataTableColumn[] = useMemo(() => [
+    {
+      id: 'glAccountName',
+      header: 'GL Account Name',
+      accessorKey: 'glAccountName',
+      dataType: 'text',
+      width: 200,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'glAccountNo',
+      header: 'GL No.',
+      accessorKey: 'glAccountNo',
+      dataType: 'text',
+      width: 100,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'glAccountsGroup',
+      header: 'GL Group',
+      accessorKey: 'glAccountsGroup',
+      dataType: 'text',
+      width: 150,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'mainCategories',
+      header: 'Main Categories',
+      accessorKey: 'mainCategories',
+      dataType: 'text',
+      width: 120,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'year',
+      header: 'Year',
+      accessorKey: 'year',
+      dataType: 'number',
+      width: 80,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'quarter',
+      header: 'Qtr',
+      accessorKey: 'quarter',
+      dataType: 'text',
+      width: 60,
+      formatter: (value) => value ? String(value).toUpperCase() : '-'
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      accessorKey: 'type',
+      dataType: 'text',
+      width: 100,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'warehouse',
+      header: 'WH',
+      accessorKey: 'warehouse',
+      dataType: 'text',
+      width: 60,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'costType',
+      header: 'Cost Type',
+      accessorKey: 'costType',
+      dataType: 'text',
+      width: 100,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'tcoModelCategories',
+      header: 'TCO Categories',
+      accessorKey: 'tcoModelCategories',
+      dataType: 'text',
+      width: 200,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'opexCapex',
+      header: 'OpEx/CapEx',
+      accessorKey: 'opexCapex',
+      dataType: 'text',
+      width: 100,
+      formatter: (value) => value || '-'
+    },
+    {
+      id: 'totalIncurredCost',
+      header: 'Total Cost',
+      accessorKey: 'totalIncurredCost',
+      dataType: 'currency',
+      width: 120,
+      formatter: (value) => formatCurrency(value)
+    }
+  ], []);
+
+  // Render the simplified DataTable
+  return (
+    <DataTable
+      data={data}
+      columns={columns}
+      pageSize={50}
+      enablePagination={true}
+      enableColumnVisibility={true}
+      className="mt-4"
+    />
+  );
+};
+
 export default function Dashboard() {
   const [filters, setFilters] = useState({});
 
@@ -134,6 +259,18 @@ export default function Dashboard() {
       });
     }
   }, [metrics]);
+
+  // Debug logging for data grid
+  React.useEffect(() => {
+    console.log('[Dashboard] Component state:', {
+      isLoading,
+      hasError: !!error,
+      hasMetrics: !!metrics,
+      hasTopExpenses: !!metrics?.topExpenses,
+      topExpensesLength: metrics?.topExpenses?.length || 0,
+      firstExpense: metrics?.topExpenses?.[0]
+    });
+  }, [isLoading, error, metrics]);
 
   // Get all GL Account data and prepare top 15 + Others
   const allGLAccounts = metrics?.costByGLAccount || [];
@@ -1461,77 +1598,73 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* GL Accounts Detailed View */}
+      {/* GL Accounts Detailed View - Enterprise Data Grid */}
       <div className="chart-container">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">GL Accounts Detailed View</h3>
           <div className="text-sm text-gray-600">
-            <span className="font-medium">Total Records:</span> {metrics?.topExpenses?.length || 0}
+            <span className="font-medium">Advanced Data Grid</span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>GL Account Name</th>
-                <th>GL No.</th>
-                <th>GL Group</th>
-                <th>Main Categories</th>
-                <th className="text-center">Year</th>
-                <th className="text-center">Qtr</th>
-                <th>Type</th>
-                <th>WH</th>
-                <th>Cost Type</th>
-                <th>TCO Categories</th>
-                <th className="text-center">OpEx/CapEx</th>
-                <th className="text-right">Total Cost</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics?.topExpenses
-                ?.map((expense: any, index: number) => (
-                  <tr key={index}>
-                    <td className="medium-column" title={expense.glAccountName || '-'}>
-                      {expense.glAccountName || '-'}
-                    </td>
-                    <td className="narrow-column font-mono" title={expense.glAccountNo || '-'}>
-                      {expense.glAccountNo || '-'}
-                    </td>
-                    <td className="medium-column" title={expense.glAccountsGroup || '-'}>
-                      {expense.glAccountsGroup || '-'}
-                    </td>
-                    <td className="narrow-column" title={expense.mainCategories || '-'}>
-                      {expense.mainCategories || '-'}
-                    </td>
-                    <td className="text-center">{expense.year || '-'}</td>
-                    <td className="text-center uppercase">{expense.quarter || '-'}</td>
-                    <td className="narrow-column" title={expense.type || '-'}>{expense.type || '-'}</td>
-                    <td className="text-center" title={expense.warehouse || '-'}>{expense.warehouse || '-'}</td>
-                    <td className="narrow-column" title={expense.costType || '-'}>{expense.costType || '-'}</td>
-                    <td className="wide-column" title={expense.tcoModelCategories || '-'}>
-                      {expense.tcoModelCategories || '-'}
-                    </td>
-                    <td className="text-center">
-                      <span
-                        className={`inline-block px-1 py-0 text-[0.65rem] font-medium rounded ${
-                          expense.opexCapex === "OPEX"
-                            ? "bg-blue-100 text-blue-800"
-                            : expense.opexCapex === "CAPEX"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {expense.opexCapex || '-'}
-                      </span>
-                    </td>
-                    <td className="text-right font-semibold narrow-column">
-                      {formatCurrency(expense.totalIncurredCost)}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          console.log('[Dashboard] Data Grid section:', {
+            hasMetrics: !!metrics,
+            hasTopExpenses: !!metrics?.topExpenses,
+            topExpensesLength: metrics?.topExpenses?.length || 0,
+            firstItem: metrics?.topExpenses?.[0],
+            willRenderGrid: metrics?.topExpenses && metrics.topExpenses.length > 0
+          });
+
+          if (metrics?.topExpenses && metrics.topExpenses.length > 0) {
+            return (
+              <>
+                <EnterpriseDataGrid data={metrics.topExpenses} />
+
+                {/* Debug: Simple HTML table to verify data is present */}
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-sm text-gray-600">
+                    Debug: View Raw Data ({metrics.topExpenses.length} rows)
+                  </summary>
+                  <div className="overflow-x-auto mt-2">
+                    <table className="min-w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="px-2 py-1 text-left">GL Name</th>
+                          <th className="px-2 py-1 text-left">GL No</th>
+                          <th className="px-2 py-1 text-left">Year</th>
+                          <th className="px-2 py-1 text-left">Quarter</th>
+                          <th className="px-2 py-1 text-right">Total Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.topExpenses.slice(0, 5).map((row: any, idx: number) => (
+                          <tr key={idx} className="border-b">
+                            <td className="px-2 py-1">{row.glAccountName}</td>
+                            <td className="px-2 py-1">{row.glAccountNo}</td>
+                            <td className="px-2 py-1">{row.year}</td>
+                            <td className="px-2 py-1">{row.quarter}</td>
+                            <td className="px-2 py-1 text-right">
+                              {formatCurrency(row.totalIncurredCost)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Showing first 5 of {metrics.topExpenses.length} rows
+                    </p>
+                  </div>
+                </details>
+              </>
+            );
+          } else {
+            return (
+              <div className="text-center py-8 text-gray-500">
+                No data available
+              </div>
+            );
+          }
+        })()}
       </div>
     </div>
   );

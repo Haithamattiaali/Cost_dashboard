@@ -1,0 +1,103 @@
+/**
+ * DataTable Styles
+ * Minimal CSS for proper table alignment and appearance
+ */
+
+.data-table-container {
+  width: 100%;
+}
+
+/* Table base styles */
+.data-table-container table {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Header alignment */
+.data-table-container thead th {
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Cell alignment */
+.data-table-container tbody td {
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Currency columns - right align */
+.data-table-container td[data-type="currency"],
+.data-table-container th[data-type="currency"] {
+  text-align: right;
+}
+
+/* Number columns - right align */
+.data-table-container td[data-type="number"],
+.data-table-container th[data-type="number"] {
+  text-align: right;
+}
+
+/* Checkbox column width */
+.data-table-container th:first-child,
+.data-table-container td:first-child {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+}
+
+/* Hover effects */
+.data-table-container tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Selected row highlight */
+.data-table-container tbody tr.selected {
+  background-color: #eff6ff;
+}
+
+/* Sort indicators */
+.data-table-container .sort-indicator {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+/* Filter inputs */
+.data-table-container input[type="text"] {
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.data-table-container input[type="text"]:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* Pagination buttons */
+.data-table-container button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Column visibility dropdown */
+.data-table-container details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Responsive behavior */
+@media (max-width: 768px) {
+  .data-table-container {
+    font-size: 0.875rem;
+  }
+
+  .data-table-container th,
+  .data-table-container td {
+    padding: 0.5rem;
+  }
+}
