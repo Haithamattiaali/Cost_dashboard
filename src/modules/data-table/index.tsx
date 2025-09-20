@@ -299,10 +299,12 @@ const ColumnVisibilityModal: React.FC<ColumnVisibilityModalProps> = ({
 interface CostTotalsSummaryProps {
   columns: DataTableColumn[];
   filteredData: any[];
+  selectedRows?: any[];
+  allData?: any[];
 }
 
-const CostTotalsSummary: React.FC<CostTotalsSummaryProps> = ({ columns, filteredData }) => {
-  const totals = useMemo(() => {
+const CostTotalsSummary: React.FC<CostTotalsSummaryProps> = ({ columns, filteredData, selectedRows = [], allData = [] }) => {
+  const { allTotals, filteredTotals, selectedTotals } = useMemo(() => {
     // Only aggregate actual cost/amount columns (exclude fields like year, month, period)
     const costColumns = columns.filter(
       col => {
@@ -329,7 +331,23 @@ const CostTotalsSummary: React.FC<CostTotalsSummaryProps> = ({ columns, filtered
       }
     );
 
-    return costColumns.map(col => {
+    // Calculate all totals (unfiltered)
+    const all = allData.length > 0 ? costColumns.map(col => {
+      const sum = allData.reduce((acc, row) => {
+        const value = row[col.accessorKey];
+        return acc + (Number(value) || 0);
+      }, 0);
+
+      return {
+        id: col.id,
+        header: col.header,
+        value: sum,
+        dataType: col.dataType,
+      };
+    }).filter(total => total.value > 0) : [];
+
+    // Calculate filtered totals
+    const filtered = costColumns.map(col => {
       const sum = filteredData.reduce((acc, row) => {
         const value = row[col.accessorKey];
         return acc + (Number(value) || 0);
@@ -342,22 +360,82 @@ const CostTotalsSummary: React.FC<CostTotalsSummaryProps> = ({ columns, filtered
         dataType: col.dataType,
       };
     }).filter(total => total.value > 0);
-  }, [columns, filteredData]);
 
-  if (totals.length === 0) return null;
+    // Calculate selected totals if rows are selected
+    const selected = selectedRows.length > 0 ? costColumns.map(col => {
+      const sum = selectedRows.reduce((acc, row) => {
+        const value = row.original[col.accessorKey];
+        return acc + (Number(value) || 0);
+      }, 0);
+
+      return {
+        id: col.id,
+        header: col.header,
+        value: sum,
+        dataType: col.dataType,
+      };
+    }).filter(total => total.value > 0) : [];
+
+    return { allTotals: all, filteredTotals: filtered, selectedTotals: selected };
+  }, [columns, filteredData, selectedRows, allData]);
+
+  if (filteredTotals.length === 0) return null;
 
   return (
     <div className="mb-4 p-3 bg-[#9e1f63]/5 border border-[#9e1f63]/20 rounded-lg">
-      <div className="flex flex-wrap gap-4">
-        <span className="text-sm font-semibold text-[#9e1f63]">Filtered Totals:</span>
-        {totals.map(total => (
-          <span key={total.id} className="text-sm text-gray-700">
-            <span className="font-medium">{total.header}:</span>{' '}
-            <span className="font-semibold text-[#9e1f63]">
-              {total.dataType === 'currency' ? formatCurrency(total.value) : total.value.toLocaleString()}
-            </span>
-          </span>
-        ))}
+      <div className="space-y-2">
+        {/* Header */}
+        <div className="text-sm font-semibold text-[#9e1f63] mb-2">
+          Summary{selectedRows.length > 0 && ` (${selectedRows.length} rows selected)`}:
+        </div>
+
+        {/* Totals Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filteredTotals.map(total => {
+            const allTotal = allTotals.find(t => t.id === total.id);
+            const selectedTotal = selectedTotals.find(t => t.id === total.id);
+            const percentage = allTotal && allTotal.value > 0 ? (total.value / allTotal.value * 100) : 100;
+
+            return (
+              <div key={total.id} className="bg-white p-2 rounded border border-gray-200">
+                <div className="text-xs font-medium text-gray-600 mb-1">{total.header}</div>
+                <div className="space-y-1">
+                  {/* Total */}
+                  {allTotal && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Total:</span>
+                      <span className="text-xs font-semibold text-gray-700">
+                        {total.dataType === 'currency' ? formatCurrency(allTotal.value) : allTotal.value.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Filtered */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Filtered:</span>
+                    <span className="text-xs font-semibold text-[#9e1f63]">
+                      {total.dataType === 'currency' ? formatCurrency(total.value) : total.value.toLocaleString()}
+                      <span className="text-gray-500 ml-1">({percentage.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+
+                  {/* Selected */}
+                  {selectedTotal && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Selected:</span>
+                      <span className="text-xs font-semibold text-amber-700">
+                        {total.dataType === 'currency' ? formatCurrency(selectedTotal.value) : selectedTotal.value.toLocaleString()}
+                        <span className="text-gray-500 ml-1">
+                          ({allTotal && allTotal.value > 0 ? (selectedTotal.value / allTotal.value * 100).toFixed(1) : '0.0'}%)
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -583,6 +661,28 @@ export const DataTable: React.FC<DataTableProps> = ({
     [filteredRows]
   );
 
+  // Calculate totals for selected rows
+  const selectedRowTotals = useMemo(() => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    if (selectedRows.length === 0) return null;
+
+    const totals: Record<string, number> = {};
+
+    columns.forEach(col => {
+      if ((col.dataType === 'currency' || col.dataType === 'number') && col.enableAggregation !== false) {
+        const sum = selectedRows.reduce((acc, row) => {
+          const value = row.original[col.accessorKey || col.id];
+          return acc + (Number(value) || 0);
+        }, 0);
+        if (sum > 0) {
+          totals[col.header || col.id] = sum;
+        }
+      }
+    });
+
+    return Object.keys(totals).length > 0 ? totals : null;
+  }, [table.getSelectedRowModel().rows, columns]);
+
   // Clear filters
   const clearFilters = useCallback(() => {
     setColumnFilters([]);
@@ -681,9 +781,14 @@ export const DataTable: React.FC<DataTableProps> = ({
         </div>
       </div>
 
-      {/* Cost totals summary */}
+      {/* Cost totals summary - includes both filtered and selected totals */}
       {enableAggregation && (
-        <CostTotalsSummary columns={columns} filteredData={filteredData} />
+        <CostTotalsSummary
+          columns={columns}
+          filteredData={filteredData}
+          selectedRows={table.getSelectedRowModel().rows}
+          allData={data}
+        />
       )}
 
       {/* Table */}
