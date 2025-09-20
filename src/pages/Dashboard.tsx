@@ -75,37 +75,86 @@ const getBrandColor = (index: number): string => {
   return BRAND_PALETTE[index % BRAND_PALETTE.length];
 };
 
-// Centralized chart styling configuration
+// Centralized chart styling configuration - Enhanced for better readability
 const CHART_STYLES = {
   axis: {
-    style: { fontWeight: 600 },
-    fontSize: 12,
+    style: {
+      fontWeight: 600,
+      fontFamily: 'Open Sans, sans-serif',
+      fill: '#424046' // PROCEED secondary color
+    },
+    fontSize: 14, // Increased from 12
   },
   axisLabel: {
-    style: { fontWeight: 600 },
-    fontSize: 11,
+    style: {
+      fontWeight: 600,
+      fontFamily: 'Open Sans, sans-serif',
+      fill: '#424046'
+    },
+    fontSize: 13, // Increased from 11
   },
   labelList: {
-    style: { fontWeight: "bold", fontSize: 10, fill: "#333" },
+    style: {
+      fontWeight: "bold",
+      fontSize: 12, // Increased from 10
+      fill: "#2d2d2d", // Darker for better contrast
+      fontFamily: 'Montserrat, sans-serif'
+    },
   },
   legend: {
-    wrapperStyle: { fontWeight: 600 },
+    wrapperStyle: {
+      fontWeight: 600,
+      fontSize: 13, // Added explicit size
+      fontFamily: 'Open Sans, sans-serif'
+    },
+    iconSize: 18, // Standard icon size
   },
   tooltip: {
     contentStyle: {
       fontWeight: 600,
+      fontSize: 13, // Added explicit size
       backgroundColor: "white",
-      border: "1px solid #e0e0e0",
+      border: "2px solid #9e1f63", // PROCEED primary color
+      borderRadius: "8px",
+      padding: "12px",
+      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      fontFamily: 'Open Sans, sans-serif'
     },
-    labelStyle: { fontWeight: 600 },
+    labelStyle: {
+      fontWeight: 700,
+      fontSize: 14,
+      color: '#9e1f63' // PROCEED primary color
+    },
   },
   grid: {
     strokeDasharray: "3 3",
-    stroke: "#e0e0e0",
+    stroke: "#e2e1e6", // PROCEED light gray
+    strokeOpacity: 0.7,
   },
   pieLabel: {
-    style: { fontWeight: "bold", fontSize: 12 },
+    style: {
+      fontWeight: "bold",
+      fontSize: 14, // Increased from 12
+      fontFamily: 'Montserrat, sans-serif',
+      fill: '#2d2d2d' // Darker for contrast
+    },
   },
+  // New: Bar chart value labels
+  barLabel: {
+    position: "top",
+    style: {
+      fontSize: 11,
+      fontWeight: "bold",
+      fill: "#424046",
+      fontFamily: 'Montserrat, sans-serif'
+    }
+  },
+  // New: Custom tick properties
+  tick: {
+    fontSize: 13,
+    fontFamily: 'Open Sans, sans-serif',
+    fill: '#424046'
+  }
 };
 
 // Enterprise Data Grid Component
@@ -418,10 +467,23 @@ export default function Dashboard() {
               margin={{ top: 40, right: 30, left: 20, bottom: 20 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
-              <XAxis dataKey="value" tick={CHART_STYLES.axis} />
+              <XAxis
+                dataKey="value"
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 600
+                }}
+                angle={0}
+                textAnchor="middle"
+                height={60}
+              />
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={80}
               />
               <Tooltip
                 formatter={(value) => formatCurrency(value as number)}
@@ -469,7 +531,7 @@ export default function Dashboard() {
                 ].filter((item) => item.value > 0)}
                 cx="50%"
                 cy="50%"
-                labelLine={{ stroke: "#666", strokeWidth: 1 }}
+                labelLine={{ stroke: "#424046", strokeWidth: 2 }}
                 label={(props) => {
                   const {
                     cx,
@@ -498,7 +560,11 @@ export default function Dashboard() {
                       }
                       textAnchor={x > cx ? "start" : "end"}
                       dominantBaseline="central"
-                      style={{ fontWeight: "bold", fontSize: 13 }}
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: 15,
+                        fontFamily: 'Montserrat, sans-serif'
+                      }}
                     >
                       {name}
                     </text>
@@ -649,7 +715,7 @@ export default function Dashboard() {
                 })()}
                 cx="50%"
                 cy="50%"
-                labelLine={{ stroke: "#666", strokeWidth: 1 }}
+                labelLine={{ stroke: "#424046", strokeWidth: 2 }}
                 label={(props) => {
                   const {
                     cx,
@@ -678,7 +744,11 @@ export default function Dashboard() {
                       }
                       textAnchor={x > cx ? "start" : "end"}
                       dominantBaseline="central"
-                      style={{ fontWeight: "bold", fontSize: 13 }}
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: 15,
+                        fontFamily: 'Montserrat, sans-serif'
+                      }}
                     >
                       {name}
                     </text>
@@ -902,14 +972,21 @@ export default function Dashboard() {
               <XAxis
                 dataKey="name"
                 tick={{
-                  ...CHART_STYLES.axisLabel,
+                  ...CHART_STYLES.tick,
+                  fontSize: 13,
                   angle: 0,
                   textAnchor: "middle",
+                  fontWeight: 600
                 }}
+                height={60}
               />
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={85}
               />
               <Tooltip
                 content={(props) => {
@@ -1041,10 +1118,21 @@ export default function Dashboard() {
               margin={{ top: 40, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
-              <XAxis dataKey="quarter" tick={CHART_STYLES.axis} />
+              <XAxis
+                dataKey="quarter"
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 600
+                }}
+                height={60}
+              />
               <YAxis
                 tickFormatter={(value) => formatCurrency(value, true)}
-                tick={CHART_STYLES.axis}
+                tick={{
+                  ...CHART_STYLES.tick,
+                  fontWeight: 500
+                }}
+                width={85}
               />
               <Tooltip
                 formatter={(value) => formatCurrency(value as number)}
@@ -1541,13 +1629,21 @@ export default function Dashboard() {
               dataKey="name"
               angle={-45}
               textAnchor="end"
-              height={120}
+              height={140}
               interval={0}
-              tick={CHART_STYLES.axisLabel}
+              tick={{
+                ...CHART_STYLES.tick,
+                fontSize: 12,
+                fontWeight: 600
+              }}
             />
             <YAxis
               tickFormatter={(value) => formatCurrency(value, true)}
-              tick={CHART_STYLES.axis}
+              tick={{
+                ...CHART_STYLES.tick,
+                fontWeight: 500
+              }}
+              width={90}
             />
             <Tooltip
               formatter={(value) => formatCurrency(value as number)}
