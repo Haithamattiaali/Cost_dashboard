@@ -22,10 +22,10 @@ import {
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Package,
   Truck,
   Building2,
+  BarChart3,
 } from "lucide-react";
 import MetricCard from "../components/MetricCard";
 import FilterPanel from "../components/FilterPanel";
@@ -373,7 +373,7 @@ export default function Dashboard() {
         <MetricCard
           title="Total Cost"
           value={formatCurrency(totalCost || 0)}
-          icon={<DollarSign className="h-5 w-5" />}
+          icon={<BarChart3 className="h-5 w-5" />}
           color="primary"
           trend={null}
         />
@@ -1622,42 +1622,6 @@ export default function Dashboard() {
             return (
               <>
                 <EnterpriseDataGrid data={metrics.topExpenses} />
-
-                {/* Debug: Simple HTML table to verify data is present */}
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm text-gray-600">
-                    Debug: View Raw Data ({metrics.topExpenses.length} rows)
-                  </summary>
-                  <div className="overflow-x-auto mt-2">
-                    <table className="min-w-full text-xs">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="px-2 py-1 text-left">GL Name</th>
-                          <th className="px-2 py-1 text-left">GL No</th>
-                          <th className="px-2 py-1 text-left">Year</th>
-                          <th className="px-2 py-1 text-left">Quarter</th>
-                          <th className="px-2 py-1 text-right">Total Cost</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {metrics.topExpenses.slice(0, 5).map((row: any, idx: number) => (
-                          <tr key={idx} className="border-b">
-                            <td className="px-2 py-1">{row.glAccountName}</td>
-                            <td className="px-2 py-1">{row.glAccountNo}</td>
-                            <td className="px-2 py-1">{row.year}</td>
-                            <td className="px-2 py-1">{row.quarter}</td>
-                            <td className="px-2 py-1 text-right">
-                              {formatCurrency(row.totalIncurredCost)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Showing first 5 of {metrics.topExpenses.length} rows
-                    </p>
-                  </div>
-                </details>
               </>
             );
           } else {

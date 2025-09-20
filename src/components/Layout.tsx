@@ -19,9 +19,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Analysis', href: '/analysis', icon: BarChart3 },
-    { name: 'Comparison', href: '/comparison', icon: TrendingUp },
-    { name: 'Cost Playground', href: '/playground', icon: Sparkles },
+    { name: 'Visual Builder', href: '/playground', icon: Sparkles },
     { name: 'Upload Data', href: '/upload', icon: UploadIcon },
   ];
 

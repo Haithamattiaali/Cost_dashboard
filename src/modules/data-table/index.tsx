@@ -32,6 +32,7 @@ import {
   FileSpreadsheet,
   FileText,
 } from 'lucide-react';
+import { SelectionReportCard } from './SelectionReportCard';
 import * as XLSX from 'xlsx';
 
 // Column configuration type
@@ -295,151 +296,6 @@ const ColumnVisibilityModal: React.FC<ColumnVisibilityModalProps> = ({
   );
 };
 
-// Cost Totals Summary Component
-interface CostTotalsSummaryProps {
-  columns: DataTableColumn[];
-  filteredData: any[];
-  selectedRows?: any[];
-  allData?: any[];
-}
-
-const CostTotalsSummary: React.FC<CostTotalsSummaryProps> = ({ columns, filteredData, selectedRows = [], allData = [] }) => {
-  const { allTotals, filteredTotals, selectedTotals } = useMemo(() => {
-    // Only aggregate actual cost/amount columns (exclude fields like year, month, period)
-    const costColumns = columns.filter(
-      col => {
-        if (col.enableAggregation === false) return false;
-        if (col.dataType !== 'currency' && col.dataType !== 'number') return false;
-
-        // Check if column name indicates it's a cost/amount field
-        const headerLower = col.header.toLowerCase();
-        const isCostColumn = headerLower.includes('cost') ||
-                            headerLower.includes('amount') ||
-                            headerLower.includes('total') ||
-                            headerLower.includes('budget') ||
-                            headerLower.includes('spent') ||
-                            headerLower.includes('value');
-
-        // Exclude time-related fields
-        const isTimeField = headerLower === 'year' ||
-                           headerLower === 'month' ||
-                           headerLower === 'period' ||
-                           headerLower === 'quarter' ||
-                           headerLower === 'day';
-
-        return isCostColumn && !isTimeField;
-      }
-    );
-
-    // Calculate all totals (unfiltered)
-    const all = allData.length > 0 ? costColumns.map(col => {
-      const sum = allData.reduce((acc, row) => {
-        const value = row[col.accessorKey];
-        return acc + (Number(value) || 0);
-      }, 0);
-
-      return {
-        id: col.id,
-        header: col.header,
-        value: sum,
-        dataType: col.dataType,
-      };
-    }).filter(total => total.value > 0) : [];
-
-    // Calculate filtered totals
-    const filtered = costColumns.map(col => {
-      const sum = filteredData.reduce((acc, row) => {
-        const value = row[col.accessorKey];
-        return acc + (Number(value) || 0);
-      }, 0);
-
-      return {
-        id: col.id,
-        header: col.header,
-        value: sum,
-        dataType: col.dataType,
-      };
-    }).filter(total => total.value > 0);
-
-    // Calculate selected totals if rows are selected
-    const selected = selectedRows.length > 0 ? costColumns.map(col => {
-      const sum = selectedRows.reduce((acc, row) => {
-        const value = row.original[col.accessorKey];
-        return acc + (Number(value) || 0);
-      }, 0);
-
-      return {
-        id: col.id,
-        header: col.header,
-        value: sum,
-        dataType: col.dataType,
-      };
-    }).filter(total => total.value > 0) : [];
-
-    return { allTotals: all, filteredTotals: filtered, selectedTotals: selected };
-  }, [columns, filteredData, selectedRows, allData]);
-
-  if (filteredTotals.length === 0) return null;
-
-  return (
-    <div className="mb-4 p-3 bg-[#9e1f63]/5 border border-[#9e1f63]/20 rounded-lg">
-      <div className="space-y-2">
-        {/* Header */}
-        <div className="text-sm font-semibold text-[#9e1f63] mb-2">
-          Summary{selectedRows.length > 0 && ` (${selectedRows.length} rows selected)`}:
-        </div>
-
-        {/* Totals Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredTotals.map(total => {
-            const allTotal = allTotals.find(t => t.id === total.id);
-            const selectedTotal = selectedTotals.find(t => t.id === total.id);
-            const percentage = allTotal && allTotal.value > 0 ? (total.value / allTotal.value * 100) : 100;
-
-            return (
-              <div key={total.id} className="bg-white p-2 rounded border border-gray-200">
-                <div className="text-xs font-medium text-gray-600 mb-1">{total.header}</div>
-                <div className="space-y-1">
-                  {/* Total */}
-                  {allTotal && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">Total:</span>
-                      <span className="text-xs font-semibold text-gray-700">
-                        {total.dataType === 'currency' ? formatCurrency(allTotal.value) : allTotal.value.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Filtered */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Filtered:</span>
-                    <span className="text-xs font-semibold text-[#9e1f63]">
-                      {total.dataType === 'currency' ? formatCurrency(total.value) : total.value.toLocaleString()}
-                      <span className="text-gray-500 ml-1">({percentage.toFixed(1)}%)</span>
-                    </span>
-                  </div>
-
-                  {/* Selected */}
-                  {selectedTotal && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">Selected:</span>
-                      <span className="text-xs font-semibold text-amber-700">
-                        {total.dataType === 'currency' ? formatCurrency(selectedTotal.value) : selectedTotal.value.toLocaleString()}
-                        <span className="text-gray-500 ml-1">
-                          ({allTotal && allTotal.value > 0 ? (selectedTotal.value / allTotal.value * 100).toFixed(1) : '0.0'}%)
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Export Service
 class ExportService {
@@ -789,12 +645,20 @@ export const DataTable: React.FC<DataTableProps> = ({
         </div>
       </div>
 
-      {/* Cost totals summary - includes both filtered and selected totals */}
-      {enableAggregation && (
-        <CostTotalsSummary
+
+      {/* Selection Report Dashboard - shows when data is filtered OR rows are selected */}
+      {(table.getSelectedRowModel().rows.length > 0 ||
+        (filteredData.length > 0 && filteredData.length < (data?.length || 0))) && (
+        <SelectionReportCard
+          selectedRows={
+            table.getSelectedRowModel().rows.length > 0
+              ? table.getSelectedRowModel().rows.map(row => row.original)
+              : filteredData
+          }
           columns={columns}
-          filteredData={filteredData}
-          selectedRows={table.getSelectedRowModel().rows}
+          totalRows={data?.length || 0}
+          isFiltered={filteredData.length < (data?.length || 0)}
+          isSelected={table.getSelectedRowModel().rows.length > 0}
           allData={data}
         />
       )}
