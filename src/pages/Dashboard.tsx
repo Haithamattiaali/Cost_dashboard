@@ -283,8 +283,13 @@ function withDeltaOnLast(points: any[]) {
 // Enterprise Data Grid Component
 const EnterpriseDataGrid: React.FC<{
   data: any[],
-  showGrowth?: boolean
-}> = ({ data, showGrowth = false }) => {
+  showGrowth?: boolean,
+  conversionPeriods?: {
+    p1: { year: number; qtr: number };
+    p2: { year: number; qtr: number };
+  },
+  allRows?: any[]
+}> = ({ data, showGrowth = false, conversionPeriods, allRows }) => {
   // Log the incoming data
   console.log('[EnterpriseDataGrid] Received data:', {
     dataLength: data?.length,
@@ -488,6 +493,10 @@ const EnterpriseDataGrid: React.FC<{
       enableExport={true}
       enableAggregation={true}
       className="mt-4"
+      // Pass conversion mode props
+      conversionMode={showGrowth}
+      conversionPeriods={conversionPeriods}
+      allRows={allRows}
     />
   );
 };
@@ -3822,10 +3831,11 @@ export default function Dashboard() {
         </div>
         {(() => {
           let displayData: any[];
+          let allRows: any[] = [];
 
           if (mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics && firstPeriod && secondPeriod) {
             // Use buildConversionRows for comparison mode
-            const allRows = [
+            allRows = [
               ...(firstPeriodMetrics.topExpenses || []),
               ...(secondPeriodMetrics.topExpenses || [])
             ];
@@ -3862,6 +3872,11 @@ export default function Dashboard() {
                 <EnterpriseDataGrid
                   data={displayData}
                   showGrowth={mode === 'comparison'}
+                  conversionPeriods={mode === 'comparison' ? {
+                    p1: { year: firstPeriod.year, qtr: parseInt(firstPeriod.quarter.substring(1)) },
+                    p2: { year: secondPeriod.year, qtr: parseInt(secondPeriod.quarter.substring(1)) }
+                  } : undefined}
+                  allRows={mode === 'comparison' ? allRows : undefined}
                 />
               </>
             );

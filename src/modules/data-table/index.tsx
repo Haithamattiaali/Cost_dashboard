@@ -70,6 +70,13 @@ interface DataTableProps {
   enableColumnVisibility?: boolean;
   enableExport?: boolean;
   enableAggregation?: boolean;
+  // Conversion mode props
+  conversionMode?: boolean;
+  conversionPeriods?: {
+    p1: { year: number; qtr: number };
+    p2: { year: number; qtr: number };
+  };
+  allRows?: any[]; // All rows for both periods (needed for conversion calculations)
 }
 
 // Format currency helper
@@ -367,6 +374,9 @@ export const DataTable: React.FC<DataTableProps> = ({
   enableColumnVisibility = true,
   enableExport = true,
   enableAggregation = true,
+  conversionMode = false,
+  conversionPeriods,
+  allRows,
 }) => {
   // State management
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -748,20 +758,32 @@ export const DataTable: React.FC<DataTableProps> = ({
 
       {/* Selection Report Dashboard - shows when data is filtered OR rows are selected */}
       {(table.getSelectedRowModel().rows.length > 0 ||
-        (filteredData.length > 0 && filteredData.length < (data?.length || 0))) && (
-        <SelectionReportCard
-          selectedRows={
-            table.getSelectedRowModel().rows.length > 0
-              ? table.getSelectedRowModel().rows.map(row => row.original)
-              : filteredData
-          }
-          columns={columns}
-          totalRows={data?.length || 0}
-          isFiltered={filteredData.length < (data?.length || 0)}
-          isSelected={table.getSelectedRowModel().rows.length > 0}
-          allData={data}
-        />
-      )}
+        (filteredData.length > 0 && filteredData.length < (data?.length || 0))) && (() => {
+          // Generate selectedKeys based on glAccountNo
+          const selectedRowsData = table.getSelectedRowModel().rows.length > 0
+            ? table.getSelectedRowModel().rows.map(row => row.original)
+            : filteredData;
+
+          const keyOf = (r: any) => String(r['glAccountNo'] || r['GL No.'] || r['GL Account Name'] || r.id);
+          const selectedKeys = new Set(selectedRowsData.map(row => keyOf(row)));
+
+          return (
+            <SelectionReportCard
+              selectedRows={selectedRowsData}
+              columns={columns}
+              totalRows={data?.length || 0}
+              isFiltered={filteredData.length < (data?.length || 0)}
+              isSelected={table.getSelectedRowModel().rows.length > 0}
+              allData={data}
+              // Pass conversion mode props
+              conversionMode={conversionMode}
+              periods={conversionPeriods}  // Note: SelectionReportCard expects 'periods' not 'conversionPeriods'
+              allConversionData={allRows || data}  // Note: SelectionReportCard expects 'allConversionData'
+              selectedKeys={selectedKeys}
+            />
+          );
+        })()
+      }
 
       {/* Table */}
       <div className="overflow-x-auto border rounded">
