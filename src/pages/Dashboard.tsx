@@ -2664,7 +2664,8 @@ export default function Dashboard() {
                     // Enhanced collision detection
                     const isNearYAxis = x < leftMargin + 30;
                     const isNearRightEdge = x > chartWidth - 120;
-                    const isNearXAxis = y > chartHeight - bottomMargin - 50;
+                    const isNearXAxis = y > chartHeight - bottomMargin - 60;
+                    const isVeryNearXAxis = y > chartHeight - bottomMargin - 40; // Critical proximity
 
                     // Calculate smart offset positions
                     let offsetX = 0;
@@ -2683,25 +2684,44 @@ export default function Dashboard() {
                       textAnchor = "end";
                       rotation = 30; // Angle down-left
                     } else if (index === 1 || index === 2) {
-                      // Points near axis labels
-                      offsetX = index === 1 ? 40 : -40;
-                      rotation = index === 1 ? -20 : 20;
+                      // Points near axis labels (e.g., Petrol)
+                      offsetX = index === 1 ? 45 : -45;
+                      rotation = index === 1 ? -25 : 25;
+                    } else if (index >= 3 && index <= 6) {
+                      // Middle points that often collide (e.g., Maintenance at index 4-5)
+                      // Check for X-axis proximity and adjust accordingly
+                      if (isVeryNearXAxis) {
+                        // Strong displacement for points very close to X-axis
+                        offsetX = index % 2 === 0 ? 50 : -50;
+                        rotation = index % 2 === 0 ? -30 : 30; // Angle outward at 30°
+                      } else if (isNearXAxis) {
+                        // Moderate displacement
+                        offsetX = index % 2 === 0 ? 40 : -40;
+                        rotation = index % 2 === 0 ? -20 : 20;
+                      } else {
+                        // Standard alternating pattern
+                        offsetX = index % 2 === 0 ? -30 : 30;
+                      }
                     } else {
-                      // Standard positioning
+                      // Standard positioning for remaining points
                       offsetX = index % 3 === 0 ? -25 : index % 3 === 1 ? 0 : 25;
                     }
 
                     // Period 1 (older) goes BELOW
                     let baseOffsetY = 40;
 
-                    // Special Y offset for edge points
+                    // Special Y offset adjustments
                     if (isFirstPoint && isNearYAxis) {
                       baseOffsetY = 35; // Less vertical, more horizontal
                     } else if (isLastPoint && isNearRightEdge) {
                       baseOffsetY = 35;
+                    } else if (isVeryNearXAxis) {
+                      // Critical X-axis proximity - reduce vertical, increase horizontal
+                      baseOffsetY = 25;
+                      offsetX = offsetX * 1.5; // Further increase horizontal spread
                     } else if (isNearXAxis) {
-                      baseOffsetY = 28;
-                      offsetX = offsetX * 1.4; // Increase horizontal spread
+                      baseOffsetY = 30;
+                      offsetX = offsetX * 1.3; // Moderate horizontal increase
                     }
 
                     const offsetY = baseOffsetY + (index % 2 === 0 ? 0 : 15);
