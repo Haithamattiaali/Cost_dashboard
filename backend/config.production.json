@@ -8,6 +8,7 @@
   },
   "security": {
     "corsOrigins": [
+      "https://protco.netlify.app",
       "https://proceed-cost-dashboard.netlify.app",
       "https://*.netlify.app",
       "http://localhost:5173"
@@ -18,6 +19,7 @@
   "excel": {
     "uploadDirectory": "/var/data/uploads",
     "maxFileSize": 52428800,
+    "allowedTypes": [".xlsx", ".xls"],
     "allowedMimeTypes": [
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
