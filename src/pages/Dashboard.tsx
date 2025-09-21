@@ -244,6 +244,39 @@ const CHART_STYLES = {
   }
 };
 
+// Delta label helper functions for comparison charts
+const arrow = (n: number) => (n < 0 ? '↓' : n > 0 ? '↑' : '→');
+const pct = (p: number) => `${Math.abs(p).toFixed(1)}%`;
+const fmt = (n: number) => {
+  const s = n < 0 ? '-' : '+';
+  const a = Math.abs(n);
+  const t = (x: number) => Number(x.toFixed(1)).toString();
+  if (a < 1_000) return `${s}${t(a)}`;
+  if (a < 1_000_000) return `${s}${t(a / 1e3)}K`;
+  if (a < 1_000_000_000) return `${s}${t(a / 1e6)}M`;
+  return `${s}${t(a / 1e9)}B`;
+};
+
+function withDeltaOnLast(points: any[]) {
+  if (points.length < 2) return { data: points, delta: null };
+  const last = points[points.length - 1];
+  const prev = points[points.length - 2];
+
+  // Get the value fields (could be period1/period2 or totalCost)
+  const lastValue = last.period2 ?? last.totalCost ?? last.value ?? 0;
+  const prevValue = prev.period2 ?? prev.period1 ?? prev.totalCost ?? prev.value ?? 0;
+
+  const dAbs = lastValue - prevValue;
+  const dPct = prevValue === 0 ? null : (dAbs / prevValue) * 100;
+  const label = dPct === null ? `NEW (${fmt(dAbs)})` : `${arrow(dAbs)} ${pct(dPct)} (${fmt(dAbs)})`;
+  const tone = dAbs < 0 ? '#16a34a' : dAbs > 0 ? '#dc2626' : '#6b7280'; // green for decrease, red for increase
+
+  return {
+    data: points.map((p, i) => i === points.length - 1 ? { ...p, _deltaLabel: label, _deltaColor: tone } : p),
+    delta: { dAbs, dPct, label, tone }
+  };
+}
+
 // Enterprise Data Grid Component
 const EnterpriseDataGrid: React.FC<{
   data: any[],
@@ -2308,7 +2341,7 @@ export default function Dashboard() {
                                   letterSpacing: '-0.01em'
                                 }}
                               >
-                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                {arrow(dataPoint.growth)} {pct(dataPoint.growth)} ({fmt(dataPoint.period2 - dataPoint.period1)})
                               </text>
                             )}
                           </g>
@@ -2585,7 +2618,7 @@ export default function Dashboard() {
                                   letterSpacing: '-0.01em'
                                 }}
                               >
-                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                {arrow(dataPoint.growth)} {pct(dataPoint.growth)} ({fmt(dataPoint.period2 - dataPoint.period1)})
                               </text>
                             )}
                           </g>
@@ -3251,7 +3284,7 @@ export default function Dashboard() {
                                   paintOrder="stroke"
                                   transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY + growthOffsetY})` : undefined}
                                 >
-                                  {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                  {arrow(dataPoint.growth)} {pct(dataPoint.growth)} ({fmt(dataPoint.period2 - dataPoint.period1)})
                                 </text>
                               </>
                             )}
@@ -3280,7 +3313,7 @@ export default function Dashboard() {
                                   paintOrder="stroke"
                                   transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY + growthOffsetY})` : undefined}
                                 >
-                                  {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                  {arrow(dataPoint.growth)} {pct(dataPoint.growth)} ({fmt(dataPoint.period2 - dataPoint.period1)})
                                 </text>
                               </>
                             )}
@@ -3298,7 +3331,7 @@ export default function Dashboard() {
                                 strokeWidth={2.5}
                                 paintOrder="stroke"
                               >
-                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                {arrow(dataPoint.growth)} {pct(dataPoint.growth)} ({fmt(dataPoint.period2 - dataPoint.period1)})
                               </text>
                             )}
                           </g>

@@ -34,6 +34,18 @@ import {
 } from 'lucide-react';
 import { SelectionReportCard } from './SelectionReportCard';
 import * as XLSX from 'xlsx';
+import {
+  SearchState,
+  applySearchAndFilters,
+  debounce,
+  hasActiveSearch,
+  clearSearchState,
+  updateColumnSearch,
+  toComparable,
+  Column as SearchColumn,
+  progressiveTextFilter,
+  matchText
+} from '../../utils/search';
 
 // Column configuration type
 export interface DataTableColumn {
@@ -87,6 +99,7 @@ interface FilterDropdownProps {
 
 const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -107,54 +120,36 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }
     };
   }, [onClose]);
 
-  const uniqueValues = useMemo(() => {
-    const values = new Set<any>();
-    data.forEach(row => {
-      const value = row[column.id];
-      if (value !== undefined && value !== null) {
-        values.add(value);
-      }
-    });
-    return Array.from(values).sort();
-  }, [data, column.id]);
+  // Focus input when dropdown opens
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
-  const [selectedValues, setSelectedValues] = useState<Set<any>>(
-    () => new Set(column.getFilterValue() || [])
-  );
-
-  const handleSelectAll = () => {
-    if (selectedValues.size === uniqueValues.length) {
-      setSelectedValues(new Set());
-    } else {
-      setSelectedValues(new Set(uniqueValues));
+  // Get current filter value (convert from array if needed for backward compat)
+  const currentValue = useMemo(() => {
+    const val = column.getFilterValue();
+    if (Array.isArray(val)) {
+      return val[0] || ''; // Take first value if it's an array
     }
-  };
+    return String(val || '');
+  }, [column]);
 
-  const handleToggleValue = (value: any) => {
-    const newSet = new Set(selectedValues);
-    if (newSet.has(value)) {
-      newSet.delete(value);
-    } else {
-      newSet.add(value);
-    }
-    setSelectedValues(newSet);
-  };
-
-  const handleApply = () => {
-    column.setFilterValue(selectedValues.size > 0 ? Array.from(selectedValues) : undefined);
-    onClose();
+  const handleInputChange = (value: string) => {
+    // Set filter value directly as string for progressive filtering
+    column.setFilterValue(value || undefined);
   };
 
   const handleClear = () => {
-    setSelectedValues(new Set());
     column.setFilterValue(undefined);
-    onClose();
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
   };
 
   const dropdownContent = (
     <div
       ref={dropdownRef}
-      className="fixed bg-white border-2 border-gray-300 rounded-lg shadow-2xl p-3 min-w-[240px] max-h-[450px] overflow-hidden flex flex-col"
+      className="fixed bg-white border-2 border-gray-300 rounded-lg shadow-2xl p-3 min-w-[200px]"
       style={{
         zIndex: 99999,
         top: '50%',
@@ -164,52 +159,45 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ column, data, onClose }
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header controls */}
-      <div className="flex items-center justify-between pb-2 border-b mb-2">
-        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-          <input
-            type="checkbox"
-            checked={selectedValues.size === uniqueValues.length}
-            onChange={handleSelectAll}
-            className="w-4 h-4"
-          />
-          Select All ({uniqueValues.length})
+      {/* Text input for progressive filtering */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">
+          Filter {column.id}:
         </label>
-      </div>
-
-      {/* Values list */}
-      <div className="flex-1 overflow-y-auto max-h-[250px] space-y-1">
-        {uniqueValues.map(value => (
-          <label
-            key={value}
-            className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={selectedValues.has(value)}
-              onChange={() => handleToggleValue(value)}
-              className="w-4 h-4"
-            />
-            <span className="text-sm truncate">
-              {value === null || value === undefined ? '(Empty)' : String(value)}
-            </span>
-          </label>
-        ))}
+        <input
+          ref={inputRef}
+          type="text"
+          defaultValue={currentValue}
+          placeholder={`Type to filter...`}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onClose();
+            } else if (e.key === 'Escape') {
+              handleClear();
+              onClose();
+            }
+          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9e1f63] focus:border-transparent"
+        />
+        <div className="text-xs text-gray-500">
+          Type to search (e.g., "20" for 2020-2029)
+        </div>
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-2 border-t mt-2">
-        <button
-          onClick={handleApply}
-          className="flex-1 px-3 py-1.5 bg-[#9e1f63] text-white text-sm rounded hover:bg-[#8a1a57]"
-        >
-          Apply
-        </button>
+      <div className="flex gap-2 pt-2 mt-2">
         <button
           onClick={handleClear}
           className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
         >
           Clear
+        </button>
+        <button
+          onClick={onClose}
+          className="flex-1 px-3 py-1.5 bg-[#9e1f63] text-white text-sm rounded hover:bg-[#8a1a57]"
+        >
+          Close
         </button>
       </div>
     </div>
@@ -390,6 +378,14 @@ export const DataTable: React.FC<DataTableProps> = ({
   const [showColumnModal, setShowColumnModal] = useState(false);
   const filterRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
+  // Interactive search state
+  const [searchState, setSearchState] = useState<SearchState>({
+    global: '',
+    byColumn: {}
+  });
+  const [selectionOrigin, setSelectionOrigin] = useState<'auto' | 'manual'>('auto');
+  const [columnSearchVisible, setColumnSearchVisible] = useState<Record<string, boolean>>({});
+
   // Transform columns for TanStack Table
   const tableColumns = useMemo<ColumnDef<any>[]>(
     () => [
@@ -476,13 +472,19 @@ export const DataTable: React.FC<DataTableProps> = ({
         size: col.width || 150,
         enableSorting: col.enableSorting !== false,
         enableColumnFilter: col.enableFiltering !== false,
-        filterFn: multiSelectFilter,
+        filterFn: 'progressiveText', // Use progressive text filter for all columns
       })),
     ],
     [columns, data, activeFilterColumn]
   );
 
-  // Create table instance
+  // Manual row selection handler
+  const handleManualRowSelection = useCallback((updater: any) => {
+    setSelectionOrigin('manual');
+    setRowSelection(updater);
+  }, []);
+
+  // Create table instance with progressive filtering
   const table = useReactTable({
     data: data || [],
     columns: tableColumns,
@@ -496,13 +498,22 @@ export const DataTable: React.FC<DataTableProps> = ({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleManualRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
-    globalFilterFn: 'includesString',
+    // Use custom global filter for progressive search
+    globalFilterFn: (row, _columnId, value) => {
+      const q = String(value ?? '');
+      if (!q) return true;
+      // Check if any column matches the query using progressive matching
+      return row.getAllCells().some(cell => matchText(cell.getValue(), q));
+    },
+    filterFns: {
+      progressiveText: progressiveTextFilter,
+    },
     initialState: {
       pagination: {
         pageSize,
@@ -510,12 +521,94 @@ export const DataTable: React.FC<DataTableProps> = ({
     },
   });
 
-  // Get filtered rows for export and aggregation
-  const filteredRows = table.getFilteredRowModel().rows;
-  const filteredData = useMemo(() =>
-    filteredRows.map(row => row.original),
-    [filteredRows]
+  // Apply interactive search filtering
+  const searchColumns = useMemo<SearchColumn[]>(() =>
+    columns.map(col => ({
+      id: col.id,
+      accessor: (row: any) => row[col.accessorKey || col.id],
+      searchable: col.enableFiltering !== false,
+      header: col.header
+    })), [columns]
   );
+
+  // Get filtered rows after applying search
+  const searchFilteredData = useMemo(() => {
+    // First apply table filters
+    const tableFiltered = table.getFilteredRowModel().rows.map(row => ({
+      ...row.original,
+      id: row.id
+    }));
+
+    // Then apply search filters
+    return applySearchAndFilters(
+      tableFiltered,
+      searchState,
+      searchColumns
+    );
+  }, [table.getFilteredRowModel().rows, searchState, searchColumns]);
+
+  // Auto-select filtered rows when search changes
+  useEffect(() => {
+    if (selectionOrigin === 'auto' && hasActiveSearch(searchState)) {
+      // Auto-select all filtered rows (max 5000 for performance)
+      if (searchFilteredData.length <= 5000) {
+        const newSelection: Record<string, boolean> = {};
+        searchFilteredData.forEach(row => {
+          const rowId = String(row.id);
+          newSelection[rowId] = true;
+        });
+        setRowSelection(newSelection);
+      } else {
+        // Show warning for large datasets
+        console.warn(`Auto-select paused for ${searchFilteredData.length} rows`);
+      }
+    } else if (!hasActiveSearch(searchState) && selectionOrigin === 'auto') {
+      // Clear selection when search is cleared
+      setRowSelection({});
+    }
+  }, [searchFilteredData, searchState, selectionOrigin]);
+
+  // Debounced search handlers
+  const handleGlobalSearch = useMemo(
+    () => debounce((value: string) => {
+      setSelectionOrigin('auto');
+      setSearchState(prev => ({ ...prev, global: value }));
+    }, 150),
+    []
+  );
+
+  const handleColumnSearch = useMemo(
+    () => debounce((columnId: string, value: string) => {
+      setSelectionOrigin('auto');
+      setSearchState(prev => updateColumnSearch(prev, columnId, value));
+    }, 150),
+    []
+  );
+
+  // Clear all searches and filters
+  const handleClearAll = useCallback(() => {
+    setSearchState(clearSearchState());
+    setSelectionOrigin('auto');
+    setRowSelection({});
+    setGlobalFilter('');
+    setColumnFilters([]);
+    table.getAllColumns().forEach(column => {
+      column.setFilterValue(undefined);
+    });
+  }, [table]);
+
+  // Update table data to use search-filtered data
+  useEffect(() => {
+    // Update table's data if search is active
+    if (hasActiveSearch(searchState)) {
+      // We'll need to recreate the table with filtered data
+      // For now, we'll handle this in the row rendering
+    }
+  }, [searchState]);
+
+  // Get filtered rows for export and aggregation
+  const filteredRows = searchFilteredData;
+  const filteredData = useMemo(() => filteredRows, [filteredRows]);
 
   // Calculate totals for selected rows
   const selectedRowTotals = useMemo(() => {
@@ -541,14 +634,7 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    // Clear all column filters (including search inputs and dropdown filters)
-    table.getAllColumns().forEach(column => {
-      column.setFilterValue(undefined);
-    });
-    // Clear global filter
-    setGlobalFilter('');
-    // Clear the column filters state
-    setColumnFilters([]);
+    handleClearAll();
     // Clear all row selections (checkboxes)
     table.resetRowSelection();
   }, [table]);
@@ -573,25 +659,39 @@ export const DataTable: React.FC<DataTableProps> = ({
       {/* Toolbar */}
       <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          {/* Global filter */}
+          {/* Global interactive search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              value={globalFilter ?? ''}
-              onChange={e => setGlobalFilter(e.target.value)}
+              value={searchState.global}
+              onChange={e => {
+                handleGlobalSearch(e.target.value);
+                setGlobalFilter(e.target.value); // Keep original filter for compatibility
+              }}
               placeholder="Search all columns..."
               className="pl-10 pr-8 py-2 border rounded w-64"
             />
-            {globalFilter && (
+            {searchState.global && (
               <button
-                onClick={() => setGlobalFilter('')}
+                onClick={() => {
+                  setSearchState(prev => ({ ...prev, global: '' }));
+                  setGlobalFilter('');
+                  setSelectionOrigin('auto');
+                }}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2"
               >
                 <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
               </button>
             )}
           </div>
+
+          {/* Auto-select indicator */}
+          {selectionOrigin === 'auto' && hasActiveSearch(searchState) && (
+            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              Auto-selected {searchFilteredData.length} rows
+            </div>
+          )}
 
           {/* Clear filters button */}
           {(columnFilters.length > 0 || globalFilter) && (
@@ -683,7 +783,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                 ))}
               </tr>
             ))}
-            {/* Search input row for each column */}
+            {/* Column search input row */}
             <tr className="bg-gray-50 border-b">
               <th className="px-4 py-2">
                 {/* Empty cell for checkbox column */}
@@ -691,19 +791,22 @@ export const DataTable: React.FC<DataTableProps> = ({
               {columns.map(col => (
                 <th key={col.id} className="px-4 py-2">
                   {col.enableFiltering !== false ? (
-                    <input
-                      type="text"
-                      value={(table.getColumn(col.id)?.getFilterValue() ?? '') as string}
-                      onChange={e => {
-                        const value = e.target.value;
-                        table.getColumn(col.id)?.setFilterValue(value || undefined);
-                      }}
-                      onKeyDown={e => {
-                        e.stopPropagation();
-                      }}
-                      placeholder="Search..."
-                      className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:border-[#9e1f63] focus:ring-1 focus:ring-[#9e1f63]/20"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchState.byColumn[col.id] || ''}
+                        onChange={e => {
+                          handleColumnSearch(col.id, e.target.value);
+                          // Also update table filter for compatibility
+                          table.getColumn(col.id)?.setFilterValue(e.target.value || undefined);
+                        }}
+                        onKeyDown={e => {
+                          e.stopPropagation();
+                        }}
+                        placeholder="Search..."
+                        className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:border-[#9e1f63] focus:ring-1 focus:ring-[#9e1f63]/20"
+                      />
+                    </div>
                   ) : null}
                 </th>
               ))}
