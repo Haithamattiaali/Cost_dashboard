@@ -43,3 +43,15 @@ export function deltaBadgeText(label: string, d: Delta) {
 // Currency helpers (reuse existing or define new)
 export const fmtCurrency = (n: number, cc = 'SAR') =>
   `${cc} ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+// Alias for money formatting
+export const fmtMoney = fmtCurrency;
+
+// Helper to convert any value to number
+export const asNum = (v: any) => {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    return Number(v.replace(/[^\d.-]/g, '')) || 0;
+  }
+  return 0;
+};

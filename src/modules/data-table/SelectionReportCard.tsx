@@ -21,6 +21,8 @@ import {
   Download,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { summarizeConversion } from '../../lib/execSummaryConversion';
+import { fmtMoney, fmtPct, fmtShort, toneForCost } from '../../utils/delta';
 
 // ===========================
 // Module Contracts & Interfaces
@@ -39,6 +41,14 @@ export interface SelectionReportData {
   isFiltered?: boolean;
   isSelected?: boolean;
   allData?: any[];
+  // Conversion mode parameters
+  conversionMode?: boolean;
+  periods?: {
+    p1: { year: number; qtr: number };
+    p2: { year: number; qtr: number };
+  };
+  allConversionData?: any[]; // All rows for both periods
+  selectedKeys?: Set<string | number>; // Keys of selected rows
 }
 
 interface MetricCardProps {
@@ -482,7 +492,34 @@ export const SelectionReportCard: React.FC<SelectionReportData> = ({
   isFiltered = false,
   isSelected = false,
   allData = [],
+  conversionMode = false,
+  periods,
+  allConversionData,
+  selectedKeys,
 }) => {
+  // Calculate conversion metrics if in conversion mode
+  const conversionMetrics = useMemo(() => {
+    if (!conversionMode || !periods || !allConversionData || !selectedKeys) {
+      return null;
+    }
+
+    const result = summarizeConversion(
+      allConversionData,
+      selectedKeys,
+      periods,
+      {
+        valueKey: 'totalIncurredCost',
+        catKey: 'mainCategories',
+        keyCols: ['glAccountNo'],
+        currency: 'SAR',
+        yearCol: 'year',
+        qtrCol: 'quarter'
+      }
+    );
+
+    return result;
+  }, [conversionMode, periods, allConversionData, selectedKeys]);
+
   // Calculate core metrics
   const metrics = useMemo(() => {
     if (!selectedRows || selectedRows.length === 0) return null;
@@ -794,40 +831,160 @@ export const SelectionReportCard: React.FC<SelectionReportData> = ({
         <MetricCard
           title="Financial Summary"
           value={
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Total Quarter</div>
-                <div className="text-xl font-bold text-[#424046]">
-                  {AnalyticsService.formatCurrency(metrics.grandTotal)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Selected Value</div>
-                <div className="text-xl font-bold text-[#9e1f63]">
-                  {AnalyticsService.formatCurrency(metrics.totalValue)}
-                </div>
-              </div>
-              <div className="pt-3 border-t border-[#e2e1e6]">
-                <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold" title="Selected Value ÷ Total Quarter">Coverage</div>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] bg-clip-text text-transparent">
-                    {metrics.percentageOfValue.toFixed(1)}%
+            conversionMode && conversionMetrics ? (
+              <div className="space-y-3">
+                {/* Total Quarter - P2 vs P1 */}
+                <div>
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Total Quarter</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-500">P2</div>
+                      <div className="text-lg font-bold text-[#424046]">
+                        {fmtMoney(conversionMetrics.totals.p2.total)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">P1</div>
+                      <div className="text-lg font-bold text-[#717171]">
+                        {fmtMoney(conversionMetrics.totals.p1.total)}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs text-[#717171]" title={`${AnalyticsService.formatCurrency(metrics.totalValue)} of ${AnalyticsService.formatCurrency(metrics.grandTotal)}`}>
-                    (Selected ÷ Total)
-                  </span>
+                </div>
+
+                {/* Selected Value - P2 vs P1 */}
+                <div>
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Selected Value</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-500">P2</div>
+                      <div className="text-lg font-bold text-[#9e1f63]">
+                        {fmtMoney(conversionMetrics.totals.p2.selected)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">P1</div>
+                      <div className="text-lg font-bold text-[#cb5b96]">
+                        {fmtMoney(conversionMetrics.totals.p1.selected)}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Delta chip */}
+                  <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold mt-1 ${
+                    toneForCost(conversionMetrics.totals.delta.selected) === 'success'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : toneForCost(conversionMetrics.totals.delta.selected) === 'danger'
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {fmtPct(conversionMetrics.totals.delta.selected.pct)} ({fmtShort(conversionMetrics.totals.delta.selected.abs)})
+                  </div>
+                </div>
+
+                {/* Coverage - P2 vs P1 */}
+                <div className="pt-3 border-t border-[#e2e1e6]">
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold" title="Selected ÷ Total">Coverage</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-xs text-gray-500">P2</div>
+                      <div className="text-lg font-bold bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] bg-clip-text text-transparent">
+                        {conversionMetrics.totals.p2.coverage.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">P1</div>
+                      <div className="text-lg font-bold text-[#717171]">
+                        {conversionMetrics.totals.p1.coverage.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  {/* Coverage delta */}
+                  <div className="text-xs text-gray-600 mt-1">
+                    Δ coverage: {fmtPct(conversionMetrics.totals.delta.coverage.pct)} ({fmtShort(conversionMetrics.totals.delta.coverage.abs)} pp)
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Total Quarter</div>
+                  <div className="text-xl font-bold text-[#424046]">
+                    {AnalyticsService.formatCurrency(metrics.grandTotal)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Selected Value</div>
+                  <div className="text-xl font-bold text-[#9e1f63]">
+                    {AnalyticsService.formatCurrency(metrics.totalValue)}
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-[#e2e1e6]">
+                  <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold" title="Selected Value ÷ Total Quarter">Coverage</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] bg-clip-text text-transparent">
+                      {metrics.percentageOfValue.toFixed(1)}%
+                    </div>
+                    <span className="text-xs text-[#717171]" title={`${AnalyticsService.formatCurrency(metrics.totalValue)} of ${AnalyticsService.formatCurrency(metrics.grandTotal)}`}>
+                      (Selected ÷ Total)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
           }
           icon={<TrendingUp className="h-5 w-5 text-[#9e1f63]" />}
-          subtitle={`Quarter ${Object.keys(metrics.quarterTotals).join(', ') || 'Q2'} • FY${metrics.fiscalYear}`}
+          subtitle={conversionMode && periods
+            ? `Quarter Q${periods.p2.qtr} vs Q${periods.p1.qtr} • FY${periods.p2.year}`
+            : `Quarter ${Object.keys(metrics.quarterTotals).join(', ') || 'Q2'} • FY${metrics.fiscalYear}`}
           gradient={true}
         />
         <MetricCard
-          title="Selected Categories — % of Total"
+          title={conversionMode ? "Selected Categories — % of Total (P2)" : "Selected Categories — % of Total"}
           value={
-            categoryData.length > 0 ? (
+            conversionMode && conversionMetrics ? (
+              <div className={`space-y-3 ${conversionMetrics.categories.length > 12 ? 'max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
+                {conversionMetrics.categories.slice(0, 12).map((category, idx) => (
+                  <div key={idx} className="group">
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-gray-700 font-medium block truncate" title={category.label}>
+                          {category.label}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-semibold text-gray-800">
+                            {fmtMoney(category.v2, conversionMetrics.currency)}
+                          </span>
+                          <span className={`font-medium ${
+                            toneForCost(category.delta) === 'success'
+                              ? 'text-emerald-600'
+                              : toneForCost(category.delta) === 'danger'
+                              ? 'text-rose-600'
+                              : 'text-gray-500'
+                          }`}>
+                            {category.delta.pct === null
+                              ? `NEW (${fmtShort(category.delta.abs)})`
+                              : `${fmtPct(category.delta.pct)} (${fmtShort(category.delta.abs)})`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right ml-2">
+                        <span className="text-xs font-bold text-[#9e1f63]">
+                          {category.pctOfTotalP2.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="absolute left-0 top-0 h-full bg-gradient-to-r from-[#9e1f63] to-[#c2185b] rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(category.pctOfTotalP2, 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : categoryData.length > 0 ? (
               <div className={`space-y-3 ${categoryData.length > 10 ? 'max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
                 {categoryData.slice(0, 10).map((category, idx) => (
                   <div key={idx} className="group">
