@@ -1,36 +1,56 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import { Upload as UploadIcon, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, ArrowRight, X } from 'lucide-react';
-import { uploadExcelFile, getUploadStatus } from '../api/costs';
 import { formatDate } from '../utils/formatting';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { browserDatabase } from '../services/BrowserDatabase';
+import { dataProcessor } from '../services/DataProcessor';
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
-  const [clearExisting, setClearExisting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [showRedirectDialog, setShowRedirectDialog] = useState(false);
-  const queryClient = useQueryClient();
+  const [uploadStatus, setUploadStatus] = useState<{
+    loading: boolean;
+    success: boolean;
+    error: string | null;
+    summary: any;
+  }>({
+    loading: false,
+    success: false,
+    error: null,
+    summary: null
+  });
+  const [databaseStatus, setDatabaseStatus] = useState<{
+    hasData: boolean;
+    rowCount: number;
+    lastUpload: Date | null;
+  }>({
+    hasData: false,
+    rowCount: 0,
+    lastUpload: null
+  });
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: ['upload-status'],
-    queryFn: getUploadStatus,
-  });
+  // Load database status on mount
+  useEffect(() => {
+    loadDatabaseStatus();
+  }, []);
 
-  const uploadMutation = useMutation({
-    mutationFn: ({ file, clearExisting }: { file: File; clearExisting: boolean }) =>
-      uploadExcelFile(file, clearExisting),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['upload-status'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
-      setFile(null);
-      // Show redirect dialog after successful upload
-      setTimeout(() => {
-        setShowRedirectDialog(true);
-      }, 2000); // Give user time to see the validation report
-    },
-  });
+  const loadDatabaseStatus = async () => {
+    try {
+      await browserDatabase.initialize();
+      const data = await browserDatabase.loadData();
+      setDatabaseStatus({
+        hasData: data.length > 0,
+        rowCount: data.length,
+        lastUpload: data.length > 0 ? new Date() : null // We don't track upload time in IndexedDB, using current time as placeholder
+      });
+    } catch (error) {
+      console.error('Failed to load database status:', error);
+    }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -61,9 +81,75 @@ export default function Upload() {
     }
   };
 
-  const handleUpload = () => {
-    if (file) {
-      uploadMutation.mutate({ file, clearExisting });
+  const handleUpload = async () => {
+    if (!file) return;
+
+    setUploadStatus({
+      loading: true,
+      success: false,
+      error: null,
+      summary: null
+    });
+
+    try {
+      // Parse Excel file in browser
+      console.log('[Upload] Starting to parse Excel file:', file.name);
+      const data = await dataProcessor.parseExcel(file);
+      console.log('[Upload] Parsed data:', data.length, 'rows');
+      console.log('[Upload] First row sample:', data[0]);
+
+      if (data.length === 0) {
+        throw new Error('No valid data found in the Excel file');
+      }
+
+      // Calculate metrics for summary
+      const metrics = dataProcessor.calculateMetrics(data);
+      console.log('[Upload] Calculated metrics:', metrics);
+
+      // Get unique values for summary
+      const quarters = [...new Set(data.map(d => `${d.year} ${d.quarter}`))];
+      const warehouses = [...new Set(data.map(d => d.warehouse).filter(Boolean))];
+
+      // Save to IndexedDB (always clear existing to prevent duplicates)
+      console.log('[Upload] Saving to IndexedDB...');
+      await browserDatabase.saveData(data, true);
+      console.log('[Upload] Data saved successfully');
+
+      // IMPORTANT: Invalidate all queries to refresh dashboard data
+      console.log('[Upload] Invalidating query cache...');
+      await queryClient.invalidateQueries();
+      console.log('[Upload] Query cache invalidated');
+
+      const summary = {
+        rowsInserted: data.length,
+        totalCost: metrics.totalCost,
+        quarters: quarters,
+        warehouses: warehouses
+      };
+
+      setUploadStatus({
+        loading: false,
+        success: true,
+        error: null,
+        summary
+      });
+
+      // Update database status
+      await loadDatabaseStatus();
+
+      setFile(null);
+
+      // Show redirect dialog after successful upload
+      setTimeout(() => {
+        setShowRedirectDialog(true);
+      }, 2000);
+    } catch (error) {
+      setUploadStatus({
+        loading: false,
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to process file',
+        summary: null
+      });
     }
   };
 
@@ -75,14 +161,14 @@ export default function Upload() {
       </div>
 
       {/* Current Status */}
-      {status?.hasData && (
+      {databaseStatus.hasData && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
             <CheckCircle className="h-5 w-5 text-blue-500 mt-0.5 mr-3" />
             <div>
-              <p className="font-medium text-blue-900">Database has data</p>
+              <p className="font-medium text-blue-900">Browser storage has data</p>
               <p className="text-sm text-blue-700 mt-1">
-                {status.rowCount} rows loaded • Last upload: {formatDate(status.lastUpload || new Date())}
+                {databaseStatus.rowCount} rows stored locally
               </p>
             </div>
           </div>
@@ -161,18 +247,18 @@ export default function Upload() {
         <div className="flex justify-end">
           <button
             onClick={handleUpload}
-            disabled={uploadMutation.isPending}
+            disabled={uploadStatus.loading}
             className="btn-primary flex items-center"
           >
-            {uploadMutation.isPending ? (
+            {uploadStatus.loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
+                Processing...
               </>
             ) : (
               <>
                 <UploadIcon className="h-4 w-4 mr-2" />
-                Upload File
+                Process File
               </>
             )}
           </button>
@@ -193,7 +279,7 @@ export default function Upload() {
               </button>
             </div>
             <p className="text-gray-600 mb-6">
-              Your data has been successfully uploaded and validated. Would you like to view the data in the dashboard?
+              Your data has been successfully processed and stored locally in your browser. Would you like to view the data in the dashboard?
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -215,18 +301,18 @@ export default function Upload() {
       )}
 
       {/* Result Messages */}
-      {uploadMutation.isSuccess && (
+      {uploadStatus.success && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start">
             <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3" />
             <div>
-              <p className="font-medium text-green-900">Upload successful!</p>
-              {uploadMutation.data && (
+              <p className="font-medium text-green-900">File processed successfully!</p>
+              {uploadStatus.summary && (
                 <div className="text-sm text-green-700 mt-1">
-                  <p>• {uploadMutation.data.summary?.rowsInserted} rows imported</p>
-                  <p>• {uploadMutation.data.summary?.warehouses?.length} warehouses</p>
-                  <p>• {uploadMutation.data.summary?.quarters?.length} quarters</p>
-                  <p>• Total cost: SAR {uploadMutation.data.summary?.totalCost?.toLocaleString()}</p>
+                  <p>• {uploadStatus.summary.rowsInserted} rows stored</p>
+                  <p>• {uploadStatus.summary.warehouses?.length} warehouses</p>
+                  <p>• {uploadStatus.summary.quarters?.length} periods</p>
+                  <p>• Total cost: SAR {uploadStatus.summary.totalCost?.toLocaleString()}</p>
                 </div>
               )}
             </div>
@@ -234,14 +320,14 @@ export default function Upload() {
         </div>
       )}
 
-      {uploadMutation.isError && (
+      {uploadStatus.error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-start">
             <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-3" />
             <div>
-              <p className="font-medium text-red-900">Upload failed</p>
+              <p className="font-medium text-red-900">Processing failed</p>
               <p className="text-sm text-red-700 mt-1">
-                {uploadMutation.error?.message || 'An error occurred during upload'}
+                {uploadStatus.error}
               </p>
             </div>
           </div>

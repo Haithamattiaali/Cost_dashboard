@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug IndexedDB</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border: 1px solid #00ff00;
+            overflow-x: auto;
+        }
+        h3 { color: #ff00ff; }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB Debug Console</h1>
+    <div id="output"></div>
+
+    <script>
+        const dbName = 'CostDashboardDB';
+        const storeName = 'costs';
+
+        async function debugDB() {
+            const output = document.getElementById('output');
+
+            try {
+                // Open database
+                const request = indexedDB.open(dbName);
+
+                request.onsuccess = async (event) => {
+                    const db = event.target.result;
+
+                    // Start transaction
+                    const transaction = db.transaction([storeName], 'readonly');
+                    const objectStore = transaction.objectStore(storeName);
+
+                    // Get all data
+                    const getAllRequest = objectStore.getAll();
+
+                    getAllRequest.onsuccess = () => {
+                        const data = getAllRequest.result;
+
+                        // Extract unique years
+                        const years = [...new Set(data.map(d => d.year))].sort();
+                        const yearTypes = [...new Set(data.map(d => typeof d.year))];
+
+                        // Sample problematic years
+                        const yearSamples = data.slice(0, 10).map(d => ({
+                            year: d.year,
+                            type: typeof d.year,
+                            quarter: d.quarter,
+                            warehouse: d.warehouse
+                        }));
+
+                        // Check for any non-2025 years
+                        const non2025 = data.filter(d => d.year !== 2025);
+
+                        // Check for invalid years
+                        const invalidYears = data.filter(d => !d.year || isNaN(d.year));
+
+                        output.innerHTML = `
+                            <h3>Database Analysis</h3>
+                            <pre>
+Total Rows: ${data.length}
+Unique Years: ${JSON.stringify(years)}
+Year Data Types: ${JSON.stringify(yearTypes)}
+
+First 10 rows (year info):
+${JSON.stringify(yearSamples, null, 2)}
+
+Non-2025 entries: ${non2025.length}
+${non2025.length > 0 ? 'Sample non-2025: ' + JSON.stringify(non2025.slice(0, 3), null, 2) : ''}
+
+Invalid year entries: ${invalidYears.length}
+${invalidYears.length > 0 ? 'Sample invalid: ' + JSON.stringify(invalidYears.slice(0, 3), null, 2) : ''}
+                            </pre>
+
+                            <h3>Year Distribution</h3>
+                            <pre>
+${years.map(year => {
+    const count = data.filter(d => d.year === year).length;
+    return `Year ${year}: ${count} rows`;
+}).join('\n')}
+                            </pre>
+                        `;
+                    };
+                };
+
+                request.onerror = () => {
+                    output.innerHTML = '<pre>Error opening database</pre>';
+                };
+
+            } catch (error) {
+                output.innerHTML = `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+
+        // Run debug on load
+        debugDB();
+    </script>
+</body>
+</html>

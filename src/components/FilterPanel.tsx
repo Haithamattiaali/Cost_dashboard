@@ -58,7 +58,14 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   // Stable callback for filters change
   const notifyFiltersChange = useCallback(() => {
     const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
-      if (value) acc[key] = value;
+      if (value) {
+        // Convert year to number for proper type matching with database
+        if (key === 'year') {
+          acc[key] = parseInt(value, 10);
+        } else {
+          acc[key] = value;
+        }
+      }
       return acc;
     }, {} as any);
 
@@ -68,6 +75,7 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
       lastFiltersRef.current = filtersStr;
       // Save to localStorage
       localStorage.setItem('dashboard-filters', JSON.stringify(filters));
+      console.log('[FilterPanel] Sending filters:', activeFilters);
       onFiltersChange(activeFilters);
     }
   }, [filters, onFiltersChange]);
@@ -169,7 +177,7 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
                 >
                   <option value="">All Years</option>
                   {filterValidOptions(filterOptions?.years)?.map((year: number) => (
-                    <option key={year} value={year}>{year}</option>
+                    <option key={year} value={String(year)}>{String(year)}</option>
                   ))}
                 </select>
               </div>

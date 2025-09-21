@@ -8,7 +8,7 @@ export type Period = {
   key: PeriodKey;
   type: Granularity;
   year: number;
-  quarter?: 1 | 2 | 3 | 4;
+  quarter?: 1 | 2 | 3 | 4 | string; // Can be number or string like "Q2"
   month?: number; // 1-12
   start: Date;
   end: Date;
@@ -126,11 +126,11 @@ export function makeQuarter(year: number, quarter: 1 | 2 | 3 | 4): Period {
     key: `${year}-Q${quarter}`,
     type: 'quarter',
     year,
-    quarter,
+    quarter: quarter, // Keep as number to match type definition
     start,
     end,
     display: `Q${quarter} ${year}`,
-    value: `q${quarter}` // For backward compatibility
+    value: `Q${quarter}` // Use uppercase to match database storage format
   };
 }
 

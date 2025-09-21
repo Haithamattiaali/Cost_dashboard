@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IndexedDB Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        button { padding: 10px; margin: 5px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB Debug Tool</h1>
+
+    <button onclick="checkData()">Check Stored Data</button>
+    <button onclick="clearData()">Clear All Data</button>
+    <button onclick="addTestData()">Add Test Data</button>
+
+    <h2>Results:</h2>
+    <pre id="output">Click a button to see results...</pre>
+
+    <script>
+        async function checkData() {
+            try {
+                const dbRequest = indexedDB.open('CostDashboardDB', 1);
+
+                dbRequest.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['costs'], 'readonly');
+                    const objectStore = transaction.objectStore('costs');
+                    const getAllRequest = objectStore.getAll();
+
+                    getAllRequest.onsuccess = () => {
+                        const data = getAllRequest.result;
+                        const output = document.getElementById('output');
+
+                        if (data.length === 0) {
+                            output.textContent = 'No data found in IndexedDB';
+                        } else {
+                            output.textContent = `Found ${data.length} rows in IndexedDB\n\n`;
+                            output.textContent += 'First row sample:\n';
+                            output.textContent += JSON.stringify(data[0], null, 2);
+
+                            // Calculate some basic metrics
+                            const totalCost = data.reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
+                            const years = [...new Set(data.map(r => r.year))];
+                            const quarters = [...new Set(data.map(r => r.quarter))];
+
+                            output.textContent += `\n\nMetrics:`;
+                            output.textContent += `\nTotal Cost: ${totalCost.toLocaleString()}`;
+                            output.textContent += `\nYears: ${years.join(', ')}`;
+                            output.textContent += `\nQuarters: ${quarters.join(', ')}`;
+                        }
+                    };
+
+                    getAllRequest.onerror = () => {
+                        output.textContent = 'Error reading data: ' + getAllRequest.error;
+                    };
+                };
+
+                dbRequest.onerror = () => {
+                    document.getElementById('output').textContent = 'Error opening database: ' + dbRequest.error;
+                };
+            } catch (error) {
+                document.getElementById('output').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function clearData() {
+            try {
+                const dbRequest = indexedDB.open('CostDashboardDB', 1);
+
+                dbRequest.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['costs'], 'readwrite');
+                    const objectStore = transaction.objectStore('costs');
+                    const clearRequest = objectStore.clear();
+
+                    clearRequest.onsuccess = () => {
+                        document.getElementById('output').textContent = 'All data cleared successfully';
+                    };
+
+                    clearRequest.onerror = () => {
+                        document.getElementById('output').textContent = 'Error clearing data: ' + clearRequest.error;
+                    };
+                };
+            } catch (error) {
+                document.getElementById('output').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function addTestData() {
+            try {
+                const dbRequest = indexedDB.open('CostDashboardDB', 1);
+
+                dbRequest.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['costs'], 'readwrite');
+                    const objectStore = transaction.objectStore('costs');
+
+                    const testData = {
+                        year: 2024,
+                        quarter: 'Q1',
+                        warehouse: 'Test Warehouse',
+                        type: 'Test Type',
+                        glAccountNo: 'GL001',
+                        glAccountName: 'Test Account',
+                        glAccountsGroup: 'Test Group',
+                        costType: 'Test Cost',
+                        tcoModelCategories: 'Test Category',
+                        opexCapex: 'OpEx',
+                        totalIncurredCostGlAccountValue: 10000,
+                        shareDmasco: 25,
+                        shareProceed3PL: 25,
+                        shareAlFaris: 25,
+                        shareJaleel: 25,
+                        shareOthers: 0,
+                        valueDmasco: 2500,
+                        valueProceed3PL: 2500,
+                        valueAlFaris: 2500,
+                        valueJaleel: 2500,
+                        valueOthers: 0
+                    };
+
+                    const addRequest = objectStore.add(testData);
+
+                    addRequest.onsuccess = () => {
+                        document.getElementById('output').textContent = 'Test data added successfully\n\n' + JSON.stringify(testData, null, 2);
+                    };
+
+                    addRequest.onerror = () => {
+                        document.getElementById('output').textContent = 'Error adding test data: ' + addRequest.error;
+                    };
+                };
+
+                dbRequest.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('costs')) {
+                        const objectStore = db.createObjectStore('costs', {
+                            keyPath: 'id',
+                            autoIncrement: true
+                        });
+                        // Add indexes
+                        objectStore.createIndex('year', 'year', { unique: false });
+                        objectStore.createIndex('quarter', 'quarter', { unique: false });
+                        objectStore.createIndex('warehouse', 'warehouse', { unique: false });
+                    }
+                };
+            } catch (error) {
+                document.getElementById('output').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

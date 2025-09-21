@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #9e1f63;
+            border-bottom: 3px solid #9e1f63;
+            padding-bottom: 10px;
+        }
+        .diagnostic-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #9e1f63;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #8a1a57;
+        }
+        .metric-card {
+            display: inline-block;
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            min-width: 200px;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #9e1f63;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        .flex-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cost Dashboard Diagnostic Tool</h1>
+
+    <div class="diagnostic-section">
+        <h2>Quick Actions</h2>
+        <div class="flex-container">
+            <button onclick="runFullDiagnostic()">🔍 Run Full Diagnostic</button>
+            <button onclick="checkIndexedDB()">💾 Check IndexedDB</button>
+            <button onclick="testDataProcessor()">⚙️ Test Data Processor</button>
+            <button onclick="simulateAPICall()">📡 Simulate API Call</button>
+            <button onclick="validateDataStructure()">✅ Validate Data Structure</button>
+            <button onclick="clearDatabase()">🗑️ Clear Database</button>
+            <button onclick="window.open('http://localhost:5174/upload', '_blank')">📤 Open Upload Page</button>
+            <button onclick="window.open('http://localhost:5174/dashboard', '_blank')">📊 Open Dashboard</button>
+        </div>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        let diagnosticResults = {};
+
+        function addSection(title, content, status = 'info') {
+            const results = document.getElementById('results');
+            const section = document.createElement('div');
+            section.className = 'diagnostic-section';
+            section.innerHTML = `
+                <h3>${title}</h3>
+                <div class="status ${status}">${status.toUpperCase()}</div>
+                ${content}
+            `;
+            results.appendChild(section);
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US').format(num);
+        }
+
+        async function checkIndexedDB() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+
+            return new Promise((resolve) => {
+                const dbRequest = indexedDB.open('CostDashboardDB', 1);
+
+                dbRequest.onsuccess = () => {
+                    const db = dbRequest.result;
+                    const transaction = db.transaction(['costs'], 'readonly');
+                    const objectStore = transaction.objectStore('costs');
+                    const getAllRequest = objectStore.getAll();
+
+                    getAllRequest.onsuccess = () => {
+                        const data = getAllRequest.result;
+                        diagnosticResults.dbData = data;
+
+                        let content = `<p>Database Status: <strong>Connected</strong></p>`;
+                        content += `<p>Total Records: <strong>${data.length}</strong></p>`;
+
+                        if (data.length > 0) {
+                            // Get unique values
+                            const years = [...new Set(data.map(d => d.year))].sort();
+                            const quarters = [...new Set(data.map(d => d.quarter))].sort();
+                            const warehouses = [...new Set(data.map(d => d.warehouse).filter(Boolean))].sort();
+
+                            content += `
+                                <div class="flex-container">
+                                    <div class="metric-card">
+                                        <div class="metric-value">${years.length}</div>
+                                        <div class="metric-label">Years: ${years.join(', ')}</div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="metric-value">${quarters.length}</div>
+                                        <div class="metric-label">Quarters: ${quarters.join(', ')}</div>
+                                    </div>
+                                    <div class="metric-card">
+                                        <div class="metric-value">${warehouses.length}</div>
+                                        <div class="metric-label">Warehouses</div>
+                                    </div>
+                                </div>
+                            `;
+
+                            content += `<h4>Sample Record:</h4>`;
+                            content += `<pre>${JSON.stringify(data[0], null, 2)}</pre>`;
+
+                            addSection('IndexedDB Status', content, 'success');
+                        } else {
+                            content += `<p>⚠️ No data found. Please upload an Excel file first.</p>`;
+                            addSection('IndexedDB Status', content, 'warning');
+                        }
+
+                        db.close();
+                        resolve(data);
+                    };
+                };
+
+                dbRequest.onerror = () => {
+                    addSection('IndexedDB Status', '<p>Failed to open database</p>', 'error');
+                    resolve(null);
+                };
+            });
+        }
+
+        async function testDataProcessor() {
+            const data = diagnosticResults.dbData || await checkIndexedDB();
+            if (!data || data.length === 0) {
+                addSection('Data Processor Test', '<p>No data available to test</p>', 'warning');
+                return;
+            }
+
+            // Simulate the calculateMetrics function
+            const metrics = {
+                totalCost: 0,
+                totalOpex: 0,
+                totalCapex: 0,
+                topExpenses: []
+            };
+
+            // Calculate totals
+            metrics.totalCost = data.reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
+            metrics.totalOpex = data
+                .filter(row => row.opexCapex?.toLowerCase() === 'opex')
+                .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
+            metrics.totalCapex = data
+                .filter(row => row.opexCapex?.toLowerCase() === 'capex')
+                .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
+
+            // Process topExpenses as per our fix
+            metrics.topExpenses = data
+                .filter(row => row.totalIncurredCostGlAccountValue > 0)
+                .sort((a, b) => (b.totalIncurredCostGlAccountValue || 0) - (a.totalIncurredCostGlAccountValue || 0))
+                .slice(0, 10)
+                .map(row => ({
+                    ...row,
+                    totalIncurredCost: row.totalIncurredCostGlAccountValue,
+                    quarter: row.quarter?.toUpperCase() || row.quarter
+                }));
+
+            diagnosticResults.metrics = metrics;
+
+            let content = `
+                <div class="flex-container">
+                    <div class="metric-card">
+                        <div class="metric-value">SAR ${formatNumber(Math.round(metrics.totalCost))}</div>
+                        <div class="metric-label">Total Cost</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">SAR ${formatNumber(Math.round(metrics.totalOpex))}</div>
+                        <div class="metric-label">Total OpEx</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">SAR ${formatNumber(Math.round(metrics.totalCapex))}</div>
+                        <div class="metric-label">Total CapEx</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">${metrics.topExpenses.length}</div>
+                        <div class="metric-label">Top Expenses Count</div>
+                    </div>
+                </div>
+            `;
+
+            if (metrics.topExpenses.length > 0) {
+                content += `<h4>Top 5 Expenses:</h4>`;
+                content += `<table>`;
+                content += `<tr><th>GL Account</th><th>Name</th><th>Cost</th><th>OpEx/CapEx</th></tr>`;
+                metrics.topExpenses.slice(0, 5).forEach(expense => {
+                    content += `<tr>
+                        <td>${expense.glAccountNo || 'N/A'}</td>
+                        <td>${expense.glAccountName || 'N/A'}</td>
+                        <td>SAR ${formatNumber(Math.round(expense.totalIncurredCost))}</td>
+                        <td>${expense.opexCapex || 'N/A'}</td>
+                    </tr>`;
+                });
+                content += `</table>`;
+            }
+
+            addSection('Data Processor Test', content, 'success');
+        }
+
+        async function validateDataStructure() {
+            const data = diagnosticResults.dbData || await checkIndexedDB();
+            if (!data || data.length === 0) {
+                addSection('Data Structure Validation', '<p>No data to validate</p>', 'warning');
+                return;
+            }
+
+            const sample = data[0];
+            const requiredFields = [
+                'year', 'quarter', 'warehouse', 'glAccountNo', 'glAccountName',
+                'totalIncurredCostGlAccountValue', 'opexCapex', 'type'
+            ];
+
+            const optionalFields = [
+                'costType', 'tcoModelCategories', 'glAccountsGroup',
+                'valueDmasco', 'valueProceed3PL', 'valueAlFaris'
+            ];
+
+            let content = '<h4>Required Fields Check:</h4>';
+            content += '<table>';
+            content += '<tr><th>Field</th><th>Status</th><th>Sample Value</th></tr>';
+
+            let allValid = true;
+            requiredFields.forEach(field => {
+                const hasField = field in sample;
+                const value = sample[field];
+                const isValid = hasField && value !== undefined && value !== null;
+                if (!isValid) allValid = false;
+
+                content += `<tr>
+                    <td>${field}</td>
+                    <td>${isValid ? '✅ Present' : '❌ Missing/Empty'}</td>
+                    <td>${value !== undefined ? JSON.stringify(value) : 'undefined'}</td>
+                </tr>`;
+            });
+            content += '</table>';
+
+            content += '<h4>Optional Fields:</h4>';
+            content += '<table>';
+            content += '<tr><th>Field</th><th>Status</th></tr>';
+            optionalFields.forEach(field => {
+                const hasField = field in sample && sample[field] !== undefined;
+                content += `<tr>
+                    <td>${field}</td>
+                    <td>${hasField ? '✅ Present' : '⚠️ Not present'}</td>
+                </tr>`;
+            });
+            content += '</table>';
+
+            // Check data quality
+            const emptyGLAccounts = data.filter(row => !row.glAccountNo).length;
+            const zeroCosts = data.filter(row => !row.totalIncurredCostGlAccountValue || row.totalIncurredCostGlAccountValue === 0).length;
+
+            content += '<h4>Data Quality Metrics:</h4>';
+            content += `<ul>`;
+            content += `<li>Records with empty GL Account: ${emptyGLAccounts} (${(emptyGLAccounts/data.length*100).toFixed(1)}%)</li>`;
+            content += `<li>Records with zero cost: ${zeroCosts} (${(zeroCosts/data.length*100).toFixed(1)}%)</li>`;
+            content += `</ul>`;
+
+            addSection('Data Structure Validation', content, allValid ? 'success' : 'warning');
+        }
+
+        async function simulateAPICall() {
+            const data = diagnosticResults.dbData || await checkIndexedDB();
+            if (!data || data.length === 0) {
+                addSection('API Simulation', '<p>No data available</p>', 'warning');
+                return;
+            }
+
+            // Simulate what fetchDashboardMetrics would return
+            const response = {
+                totalCost: data.reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0),
+                totalOpex: data.filter(row => row.opexCapex?.toLowerCase() === 'opex')
+                    .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0),
+                totalCapex: data.filter(row => row.opexCapex?.toLowerCase() === 'capex')
+                    .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0),
+                topExpenses: data
+                    .filter(row => row.totalIncurredCostGlAccountValue > 0)
+                    .sort((a, b) => (b.totalIncurredCostGlAccountValue || 0) - (a.totalIncurredCostGlAccountValue || 0))
+                    .slice(0, 100)
+                    .map(row => ({
+                        ...row,
+                        totalIncurredCost: row.totalIncurredCostGlAccountValue,
+                        quarter: row.quarter?.toUpperCase() || row.quarter
+                    })),
+                costByGLAccount: []  // Would be populated by actual API
+            };
+
+            let content = '<h4>Simulated API Response:</h4>';
+            content += '<pre>' + JSON.stringify({
+                totalCost: response.totalCost,
+                totalOpex: response.totalOpex,
+                totalCapex: response.totalCapex,
+                topExpensesCount: response.topExpenses.length,
+                sampleTopExpense: response.topExpenses[0]
+            }, null, 2) + '</pre>';
+
+            // Validate response structure for Dashboard
+            const isValid = response.totalCost !== undefined &&
+                           response.topExpenses !== undefined &&
+                           Array.isArray(response.topExpenses) &&
+                           (response.topExpenses.length === 0 || response.topExpenses[0].totalIncurredCost !== undefined);
+
+            content += `<p>Response structure valid for Dashboard: ${isValid ? '✅ Yes' : '❌ No'}</p>`;
+
+            addSection('API Simulation', content, isValid ? 'success' : 'error');
+        }
+
+        async function clearDatabase() {
+            if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                return;
+            }
+
+            const dbRequest = indexedDB.open('CostDashboardDB', 1);
+            dbRequest.onsuccess = () => {
+                const db = dbRequest.result;
+                const transaction = db.transaction(['costs'], 'readwrite');
+                const objectStore = transaction.objectStore('costs');
+                const clearRequest = objectStore.clear();
+
+                clearRequest.onsuccess = () => {
+                    document.getElementById('results').innerHTML = '';
+                    addSection('Database Cleared', '<p>All data has been removed from IndexedDB</p>', 'success');
+                    db.close();
+                };
+
+                clearRequest.onerror = () => {
+                    addSection('Clear Failed', '<p>Failed to clear database</p>', 'error');
+                    db.close();
+                };
+            };
+        }
+
+        async function runFullDiagnostic() {
+            document.getElementById('results').innerHTML = '';
+
+            console.log('Running full diagnostic...');
+            await checkIndexedDB();
+            await testDataProcessor();
+            await validateDataStructure();
+            await simulateAPICall();
+
+            // Add summary
+            const data = diagnosticResults.dbData;
+            const metrics = diagnosticResults.metrics;
+
+            let summaryContent = '';
+            if (data && data.length > 0 && metrics) {
+                summaryContent = `
+                    <p>✅ Database contains ${data.length} records</p>
+                    <p>✅ Metrics calculated successfully</p>
+                    <p>✅ Data structure appears valid</p>
+                    <p>Dashboard should be able to display this data.</p>
+                    <p><strong>If the dashboard is still empty, check:</strong></p>
+                    <ul>
+                        <li>Browser console for any errors</li>
+                        <li>React Query cache may need invalidation (refresh the page)</li>
+                        <li>Ensure you're on the correct port (5174)</li>
+                    </ul>
+                `;
+                addSection('Diagnostic Summary', summaryContent, 'success');
+            } else {
+                summaryContent = `
+                    <p>⚠️ No data found in database</p>
+                    <p>Please upload an Excel file first</p>
+                `;
+                addSection('Diagnostic Summary', summaryContent, 'warning');
+            }
+        }
+
+        // Auto-run basic check on load
+        window.onload = () => {
+            checkIndexedDB();
+        };
+    </script>
+</body>
+</html>

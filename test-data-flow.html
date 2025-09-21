@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Data Flow</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2d2d2d;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+        .success {
+            color: #4fc3f7;
+        }
+        .error {
+            color: #f44336;
+        }
+        .data {
+            color: #81c784;
+        }
+        pre {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        button {
+            padding: 10px 20px;
+            background: #9e1f63;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #8a1a57;
+        }
+        #results {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cost Dashboard Data Flow Test</h1>
+
+    <div class="section">
+        <h2>Test Controls</h2>
+        <button onclick="testIndexedDB()">1. Test IndexedDB</button>
+        <button onclick="testDataInDB()">2. Check Stored Data</button>
+        <button onclick="testAPICall()">3. Test API Call</button>
+        <button onclick="clearIndexedDB()">Clear IndexedDB</button>
+        <button onclick="window.open('http://localhost:5174/upload', '_blank')">Open Upload Page</button>
+        <button onclick="window.open('http://localhost:5174/dashboard', '_blank')">Open Dashboard</button>
+    </div>
+
+    <div id="results" class="section">
+        <h2>Test Results</h2>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const time = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'data' ? 'data' : '';
+            output.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        async function testIndexedDB() {
+            log('Testing IndexedDB access...');
+            try {
+                const dbName = 'CostDashboardDB';
+                const request = indexedDB.open(dbName, 1);
+
+                request.onsuccess = () => {
+                    const db = request.result;
+                    log('✓ IndexedDB opened successfully', 'success');
+                    log(`Database name: ${db.name}, version: ${db.version}`, 'data');
+                    log(`Object stores: ${Array.from(db.objectStoreNames).join(', ')}`, 'data');
+                    db.close();
+                };
+
+                request.onerror = () => {
+                    log('✗ Failed to open IndexedDB', 'error');
+                };
+            } catch (err) {
+                log(`✗ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDataInDB() {
+            log('Checking data in IndexedDB...');
+            try {
+                const dbName = 'CostDashboardDB';
+                const request = indexedDB.open(dbName, 1);
+
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction(['costs'], 'readonly');
+                    const objectStore = transaction.objectStore('costs');
+                    const getAllRequest = objectStore.getAll();
+
+                    getAllRequest.onsuccess = () => {
+                        const data = getAllRequest.result;
+                        log(`✓ Found ${data.length} rows in IndexedDB`, 'success');
+
+                        if (data.length > 0) {
+                            log('Sample data (first row):', 'data');
+                            const sample = data[0];
+                            log(`<pre>${JSON.stringify(sample, null, 2)}</pre>`, 'data');
+
+                            // Check data structure
+                            const hasRequiredFields = sample.year && sample.quarter && sample.totalIncurredCostGlAccountValue !== undefined;
+                            if (hasRequiredFields) {
+                                log('✓ Data structure looks correct', 'success');
+                            } else {
+                                log('⚠ Data structure may be incomplete', 'error');
+                            }
+
+                            // Summary statistics
+                            const years = [...new Set(data.map(d => d.year))];
+                            const quarters = [...new Set(data.map(d => d.quarter))];
+                            const totalCost = data.reduce((sum, d) => sum + (d.totalIncurredCostGlAccountValue || 0), 0);
+
+                            log(`Years: ${years.join(', ')}`, 'data');
+                            log(`Quarters: ${quarters.join(', ')}`, 'data');
+                            log(`Total cost: SAR ${totalCost.toLocaleString()}`, 'data');
+                        }
+
+                        db.close();
+                    };
+
+                    getAllRequest.onerror = () => {
+                        log('✗ Failed to read data from IndexedDB', 'error');
+                        db.close();
+                    };
+                };
+
+                request.onerror = () => {
+                    log('✗ Failed to open IndexedDB', 'error');
+                };
+            } catch (err) {
+                log(`✗ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testAPICall() {
+            log('Testing browser API call (fetchDashboardMetrics)...');
+            try {
+                // Import and test the browser API
+                const module = await import('http://localhost:5174/src/api/costs-browser.ts');
+                const metrics = await module.fetchDashboardMetrics();
+
+                log('✓ API call successful', 'success');
+                log('Metrics received:', 'data');
+                log(`<pre>${JSON.stringify(metrics, null, 2)}</pre>`, 'data');
+
+                // Validate metrics structure
+                if (metrics.totalCost !== undefined && metrics.topExpenses !== undefined) {
+                    log('✓ Metrics structure is correct', 'success');
+                    log(`Total cost: SAR ${metrics.totalCost.toLocaleString()}`, 'data');
+                    log(`Top expenses count: ${metrics.topExpenses.length}`, 'data');
+                } else {
+                    log('⚠ Metrics structure may be incomplete', 'error');
+                }
+            } catch (err) {
+                log(`✗ API call failed: ${err.message}`, 'error');
+                log('This is expected if the module is not loaded. Try checking data directly in the Dashboard.', 'info');
+            }
+        }
+
+        async function clearIndexedDB() {
+            if (!confirm('Are you sure you want to clear all data from IndexedDB?')) {
+                return;
+            }
+
+            log('Clearing IndexedDB...');
+            try {
+                const dbName = 'CostDashboardDB';
+                const request = indexedDB.open(dbName, 1);
+
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction(['costs'], 'readwrite');
+                    const objectStore = transaction.objectStore('costs');
+                    const clearRequest = objectStore.clear();
+
+                    clearRequest.onsuccess = () => {
+                        log('✓ IndexedDB cleared successfully', 'success');
+                        db.close();
+                    };
+
+                    clearRequest.onerror = () => {
+                        log('✗ Failed to clear IndexedDB', 'error');
+                        db.close();
+                    };
+                };
+
+                request.onerror = () => {
+                    log('✗ Failed to open IndexedDB', 'error');
+                };
+            } catch (err) {
+                log(`✗ Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-run initial test
+        window.onload = () => {
+            log('Page loaded. Click the buttons above to test different parts of the data flow.');
+            testIndexedDB();
+        };
+    </script>
+</body>
+</html>

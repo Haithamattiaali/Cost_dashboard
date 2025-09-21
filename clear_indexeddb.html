@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear IndexedDB</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clear IndexedDB Data</h1>
+    <p>This will clear all cost data from your browser's local storage.</p>
+
+    <button onclick="clearData()">Clear All Data</button>
+
+    <div id="status"></div>
+
+    <script>
+        async function clearData() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<p>Clearing data...</p>';
+
+            try {
+                const dbName = 'CostDashboardDB';
+                const storeName = 'costs';
+
+                // Open database
+                const request = indexedDB.open(dbName);
+
+                request.onsuccess = async (event) => {
+                    const db = event.target.result;
+
+                    // Clear the store
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const objectStore = transaction.objectStore(storeName);
+                    const clearRequest = objectStore.clear();
+
+                    clearRequest.onsuccess = () => {
+                        status.innerHTML = '<p class="success">✓ All data cleared successfully!</p>';
+                        setTimeout(() => {
+                            status.innerHTML += '<p>You can now close this tab and re-upload your data.</p>';
+                        }, 1000);
+                    };
+
+                    clearRequest.onerror = () => {
+                        status.innerHTML = '<p class="error">✗ Failed to clear data</p>';
+                    };
+                };
+
+                request.onerror = () => {
+                    status.innerHTML = '<p class="error">✗ Could not open database</p>';
+                };
+
+            } catch (error) {
+                status.innerHTML = `<p class="error">✗ Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

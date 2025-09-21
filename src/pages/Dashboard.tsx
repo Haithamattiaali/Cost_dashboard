@@ -616,7 +616,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-metrics-period1", firstPeriod],
     queryFn: () => fetchDashboardMetrics({
       year: firstPeriod?.year,
-      quarter: firstPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
+      quarter: firstPeriod?.quarter // Use quarter as-is, no lowercase conversion
     }),
     enabled: mode === 'comparison' && firstPeriod !== null,
   });
@@ -629,7 +629,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-metrics-period2", secondPeriod],
     queryFn: () => fetchDashboardMetrics({
       year: secondPeriod?.year,
-      quarter: secondPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
+      quarter: secondPeriod?.quarter // Use quarter as-is, no lowercase conversion
     }),
     enabled: mode === 'comparison' && secondPeriod !== null,
   });
@@ -2431,14 +2431,21 @@ export default function Dashboard() {
                 ]
                 : // Normal mode - show only most recent quarter
                 (() => {
+                  if (!costByQuarter || costByQuarter.length === 0) {
+                    return []; // No data available
+                  }
                   const recentQ = getMostRecentQuarter(costByQuarter);
-                  return recentQ ? [{
-                    quarter: recentQ.value.toUpperCase(),
+                  if (!recentQ || !recentQ.value) {
+                    // Fallback if no valid quarter found
+                    return [];
+                  }
+                  return [{
+                    quarter: String(recentQ.value).toUpperCase(),
                     Pharmacies: recentQ.pharmaciesCost || 0,
                     Distribution: recentQ.distributionCost || 0,
                     "Last Mile": recentQ.lastMileCost || 0,
                     "PROCEED 3PL": (recentQ.proceed3PLWHCost || 0) + (recentQ.proceed3PLTRSCost || 0),
-                  }] : [];
+                  }];
                 })()
               }
               margin={{ top: 60, right: 30, left: 20, bottom: 60 }}

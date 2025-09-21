@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnose Year Filter Issue</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        h1 { color: #9e1f63; }
+        .section {
+            background: white;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .good { color: green; font-weight: bold; }
+        .bad { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #9e1f63;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button:hover { background: #7a1950; }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover { background: #c82333; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #9e1f63;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Year Filter Diagnostic Report</h1>
+
+    <div class="section">
+        <h2>Actions</h2>
+        <button onclick="runDiagnostics()">Run Full Diagnostics</button>
+        <button class="danger" onclick="clearAllData()">Clear All Data</button>
+        <button onclick="showRawData()">Show Raw Data Sample</button>
+    </div>
+
+    <div id="report" class="section">
+        <p>Click "Run Full Diagnostics" to begin...</p>
+    </div>
+
+    <script>
+        const dbName = 'CostDashboardDB';
+        const storeName = 'costs';
+
+        async function runDiagnostics() {
+            const report = document.getElementById('report');
+            report.innerHTML = '<h2>🏃 Running diagnostics...</h2>';
+
+            try {
+                const db = await openDB();
+                const data = await getAllData(db);
+
+                // Analyze years
+                const yearAnalysis = analyzeYears(data);
+                const dataIntegrity = checkDataIntegrity(data);
+                const recommendations = generateRecommendations(yearAnalysis, dataIntegrity);
+
+                // Generate report HTML
+                let html = `
+                    <h2>📊 Diagnostic Results</h2>
+
+                    <h3>1. Year Analysis</h3>
+                    <table>
+                        <tr><th>Metric</th><th>Value</th><th>Status</th></tr>
+                        <tr>
+                            <td>Total Rows</td>
+                            <td>${yearAnalysis.totalRows}</td>
+                            <td>${yearAnalysis.totalRows > 0 ? '<span class="good">✓</span>' : '<span class="bad">✗</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>Unique Years</td>
+                            <td>${JSON.stringify(yearAnalysis.uniqueYears)}</td>
+                            <td>${yearAnalysis.uniqueYears.length === 1 ? '<span class="good">✓</span>' : '<span class="warning">⚠</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>Year Types</td>
+                            <td>${JSON.stringify(yearAnalysis.yearTypes)}</td>
+                            <td>${yearAnalysis.yearTypes.length === 1 && yearAnalysis.yearTypes[0] === 'number' ? '<span class="good">✓</span>' : '<span class="bad">✗</span>'}</td>
+                        </tr>
+                        <tr>
+                            <td>Invalid Years</td>
+                            <td>${yearAnalysis.invalidYears}</td>
+                            <td>${yearAnalysis.invalidYears === 0 ? '<span class="good">✓</span>' : '<span class="bad">✗</span>'}</td>
+                        </tr>
+                    </table>
+
+                    <h3>2. Year Distribution</h3>
+                    <pre>${yearAnalysis.distribution}</pre>
+
+                    <h3>3. Problem Rows</h3>
+                    ${yearAnalysis.problemRows.length > 0 ?
+                        `<pre>${JSON.stringify(yearAnalysis.problemRows, null, 2)}</pre>` :
+                        '<p class="good">No problem rows found!</p>'
+                    }
+
+                    <h3>4. Data Integrity</h3>
+                    <table>
+                        <tr><th>Check</th><th>Result</th></tr>
+                        ${Object.entries(dataIntegrity).map(([key, value]) =>
+                            `<tr><td>${key}</td><td>${value}</td></tr>`
+                        ).join('')}
+                    </table>
+
+                    <h3>5. Recommendations</h3>
+                    <ul>
+                        ${recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                `;
+
+                report.innerHTML = html;
+
+            } catch (error) {
+                report.innerHTML = `<p class="bad">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = () => reject(new Error('Failed to open database'));
+            });
+        }
+
+        async function getAllData(db) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([storeName], 'readonly');
+                const objectStore = transaction.objectStore(storeName);
+                const request = objectStore.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(new Error('Failed to get data'));
+            });
+        }
+
+        function analyzeYears(data) {
+            const years = data.map(d => d.year);
+            const uniqueYears = [...new Set(years)].sort();
+            const yearTypes = [...new Set(years.map(y => typeof y))];
+
+            // Find problem rows
+            const problemRows = data
+                .filter(d => !d.year || d.year !== 2025 || typeof d.year !== 'number')
+                .slice(0, 5)
+                .map(d => ({
+                    year: d.year,
+                    yearType: typeof d.year,
+                    quarter: d.quarter,
+                    warehouse: d.warehouse,
+                    glAccountName: d.glAccountName
+                }));
+
+            // Count by year
+            const distribution = uniqueYears.map(year => {
+                const count = years.filter(y => y === year).length;
+                return `Year ${year} (${typeof year}): ${count} rows`;
+            }).join('\n');
+
+            const invalidYears = years.filter(y => !y || isNaN(y) || typeof y !== 'number').length;
+
+            return {
+                totalRows: data.length,
+                uniqueYears,
+                yearTypes,
+                invalidYears,
+                distribution,
+                problemRows
+            };
+        }
+
+        function checkDataIntegrity(data) {
+            const checks = {
+                'Has Data': data.length > 0 ? `<span class="good">✓ ${data.length} rows</span>` : '<span class="bad">✗ No data</span>',
+                'All Years Valid': data.every(d => d.year && !isNaN(d.year)) ? '<span class="good">✓</span>' : '<span class="bad">✗</span>',
+                'All Years are 2025': data.every(d => d.year === 2025) ? '<span class="good">✓</span>' : '<span class="bad">✗</span>',
+                'Has Quarters': data.some(d => d.quarter) ? '<span class="good">✓</span>' : '<span class="bad">✗</span>',
+                'Has Warehouses': data.some(d => d.warehouse) ? '<span class="good">✓</span>' : '<span class="bad">✗</span>',
+            };
+            return checks;
+        }
+
+        function generateRecommendations(yearAnalysis, dataIntegrity) {
+            const recommendations = [];
+
+            if (yearAnalysis.uniqueYears.length > 1) {
+                recommendations.push(`<span class="bad">ISSUE FOUND:</span> Multiple years detected: ${JSON.stringify(yearAnalysis.uniqueYears)}. Expected only 2025.`);
+                recommendations.push('Clear all data and re-upload the Excel file.');
+            }
+
+            if (yearAnalysis.invalidYears > 0) {
+                recommendations.push(`<span class="bad">ISSUE FOUND:</span> ${yearAnalysis.invalidYears} rows have invalid year values.`);
+                recommendations.push('Check the Excel file for rows with missing or invalid year values.');
+            }
+
+            if (yearAnalysis.yearTypes.includes('string')) {
+                recommendations.push('<span class="warning">WARNING:</span> Some year values are stored as strings instead of numbers.');
+                recommendations.push('This may cause filtering issues. Clear and re-upload data.');
+            }
+
+            if (recommendations.length === 0) {
+                recommendations.push('<span class="good">✓ No issues detected!</span> The year filter should work correctly.');
+            }
+
+            return recommendations;
+        }
+
+        async function clearAllData() {
+            if (!confirm('Are you sure you want to clear all data? This cannot be undone.')) return;
+
+            try {
+                const db = await openDB();
+                const transaction = db.transaction([storeName], 'readwrite');
+                const objectStore = transaction.objectStore(storeName);
+                const request = objectStore.clear();
+
+                request.onsuccess = () => {
+                    alert('All data cleared successfully!');
+                    runDiagnostics();
+                };
+                request.onerror = () => {
+                    alert('Failed to clear data');
+                };
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        async function showRawData() {
+            try {
+                const db = await openDB();
+                const data = await getAllData(db);
+                const sample = data.slice(0, 5);
+
+                const report = document.getElementById('report');
+                report.innerHTML = `
+                    <h2>Raw Data Sample (First 5 rows)</h2>
+                    <pre>${JSON.stringify(sample, null, 2)}</pre>
+                `;
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostics, 100);
+        });
+    </script>
+</body>
+</html>
