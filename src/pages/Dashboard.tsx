@@ -2728,6 +2728,15 @@ export default function Dashboard() {
                     // Period 1 (older) goes BELOW
                     let baseOffsetY = 40;
 
+                    // X-axis label collision detection
+                    // Estimate where X-axis labels would be (typically 10-20px below chart bottom)
+                    const xAxisLabelZone = chartHeight - bottomMargin + 10;
+                    const labelHeight = 15; // Approximate label height
+                    const safetyMargin = 25; // Extra margin for safety
+
+                    // Check if label would collide with X-axis category text
+                    const wouldCollideWithXAxisLabel = (y + baseOffsetY) > (xAxisLabelZone - safetyMargin);
+
                     // Special Y offset adjustments
                     if (isFirstPoint && isNearYAxis) {
                       baseOffsetY = 35; // Less vertical, more horizontal
@@ -2736,10 +2745,31 @@ export default function Dashboard() {
                     } else if (needsAdjacentOffset) {
                       // Special vertical staggering for Other and Insurance
                       if (index === 7) {
-                        baseOffsetY = 38; // Other - slightly higher
+                        // Other - check for X-axis collision and adjust
+                        if (wouldCollideWithXAxisLabel) {
+                          baseOffsetY = 55; // Push much further down
+                          offsetX = -55; // Also push more horizontally
+                          rotation = 30; // Angle more dramatically
+                        } else {
+                          baseOffsetY = 38; // Standard position
+                        }
                       } else if (index === 8) {
-                        baseOffsetY = 48; // Insurance - lower to avoid overlap
+                        // Insurance - check for X-axis collision and adjust
+                        if (wouldCollideWithXAxisLabel) {
+                          baseOffsetY = 65; // Push even further down
+                          offsetX = 55; // Push horizontally opposite direction
+                          rotation = -30; // Angle opposite direction
+                        } else {
+                          baseOffsetY = 48; // Standard position
+                        }
                       }
+                    } else if (wouldCollideWithXAxisLabel) {
+                      // Universal collision prevention for any point
+                      baseOffsetY = Math.max(baseOffsetY, 60); // Ensure minimum distance
+                      // Increase horizontal displacement based on index
+                      offsetX = offsetX === 0 ? (index % 2 === 0 ? -45 : 45) : offsetX * 1.8;
+                      // Add angle if not already angled
+                      rotation = rotation === 0 ? (offsetX < 0 ? 30 : -30) : rotation * 1.5;
                     } else if (isVeryNearXAxis) {
                       // Critical X-axis proximity - reduce vertical, increase horizontal
                       baseOffsetY = 25;
@@ -2751,8 +2781,18 @@ export default function Dashboard() {
 
                     // Apply standard vertical variation, but skip for Other/Insurance as they have custom offsets
                     const offsetY = needsAdjacentOffset ? baseOffsetY : baseOffsetY + (index % 2 === 0 ? 0 : 15);
+
+                    // Final collision check - if still too close after all adjustments, push down more
+                    const finalY = y + offsetY;
+                    if (finalY > xAxisLabelZone - 20) {
+                      // Emergency displacement - push significantly outward and down
+                      baseOffsetY += 25;
+                      offsetX = offsetX * 1.5;
+                      rotation = rotation === 0 ? 35 : rotation;
+                    }
+
                     const labelX = x + offsetX;
-                    const labelY = y + offsetY;
+                    const labelY = y + baseOffsetY;
 
                     // Calculate curved leader line
                     const midX = x + offsetX * 0.6;
