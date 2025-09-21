@@ -568,6 +568,66 @@ export default function Dashboard() {
     return ((period2Value - period1Value) / period1Value) * 100;
   };
 
+  // Format number to short scale (K, M, B) with sign
+  const formatShortValue = (n: number): string => {
+    const sign = n >= 0 ? '+' : '';
+    const abs = Math.abs(n);
+
+    // Helper to format with 1 decimal, removing trailing .0
+    const format1Decimal = (x: number): string => {
+      const formatted = x.toFixed(1);
+      return formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted;
+    };
+
+    if (abs === 0) return '0';
+    if (abs < 1000) return `${sign}${format1Decimal(abs)}`;
+    if (abs < 1e6) return `${sign}${format1Decimal(abs / 1e3)}K`;
+    if (abs < 1e9) return `${sign}${format1Decimal(abs / 1e6)}M`;
+    return `${sign}${format1Decimal(abs / 1e9)}B`;
+  };
+
+  // Compute diff data for badges
+  type DiffData = {
+    label: string;
+    v1: number;
+    v2: number;
+    deltaAbs: number;
+    deltaPct: number | null;
+    direction: 'up' | 'down' | 'flat' | 'new';
+    badgeText: string;
+    tone: 'success' | 'danger' | 'neutral';
+    tooltip: string;
+  };
+
+  const computeDiff = (label: string, v1: number, v2: number): DiffData => {
+    const deltaAbs = v2 - v1;
+    const deltaPct = v1 === 0 ? null : (deltaAbs / v1) * 100;
+
+    let direction: 'up' | 'down' | 'flat' | 'new';
+    if (v1 === 0 && v2 > 0) direction = 'new';
+    else if (v1 > 0 && v2 === 0) direction = 'down';
+    else if (deltaAbs > 0) direction = 'up';
+    else if (deltaAbs < 0) direction = 'down';
+    else direction = 'flat';
+
+    // For costs, positive change (increase) is bad (danger), negative is good (success)
+    const tone = direction === 'up' || direction === 'new'
+      ? 'danger'
+      : direction === 'down'
+        ? 'success'
+        : 'neutral';
+
+    const formatPct = (pct: number) => `${pct >= 0 ? '+' : ''}${Math.abs(pct).toFixed(1)}%`;
+
+    const badgeText = direction === 'new'
+      ? `${label}: NEW (${formatShortValue(deltaAbs)})`
+      : `${label}: ${formatPct(deltaPct ?? 0)} (${formatShortValue(deltaAbs)})`;
+
+    const tooltip = `${label}: Period 1=${formatCurrency(v1, true)}, Period 2=${formatCurrency(v2, true)}, Δ=${formatShortValue(deltaAbs)} (${deltaPct !== null ? formatPct(deltaPct) : 'n/a'})`;
+
+    return { label, v1, v2, deltaAbs, deltaPct, direction, badgeText, tone, tooltip };
+  };
+
   // Get the most recent quarter from the data
   const getMostRecentQuarter = (quarters: any[]) => {
     if (!quarters?.length) return null;
@@ -1194,22 +1254,47 @@ export default function Dashboard() {
                 <h4 className="text-center text-sm font-semibold mb-2">
                   <div>Period 2: {secondPeriod?.quarter}</div>
                   <div className="flex justify-center gap-4 mt-2">
-                    <div className={`text-xs font-medium px-2 py-1 rounded ${
-                      calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-green-50 text-green-700 border border-green-200'
-                    }`}>
-                      <span className="font-semibold">OPEX:</span> {calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0 ? '↑' : '↓'}
-                      {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex)).toFixed(1)}%
-                    </div>
-                    <div className={`text-xs font-medium px-2 py-1 rounded ${
-                      calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-green-50 text-green-700 border border-green-200'
-                    }`}>
-                      <span className="font-semibold">CAPEX:</span> {calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
-                      {Math.abs(calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex)).toFixed(1)}%
-                    </div>
+                    {(() => {
+                      const opexDiff = computeDiff('OPEX', firstPeriodMetrics.totalOpex || 0, secondPeriodMetrics.totalOpex || 0);
+                      const capexDiff = computeDiff('CAPEX', firstPeriodMetrics.totalCapex || 0, secondPeriodMetrics.totalCapex || 0);
+
+                      return (
+                        <>
+                          <div
+                            className={`text-xs font-medium px-2 py-1 rounded ${
+                              opexDiff.tone === 'danger'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : opexDiff.tone === 'success'
+                                  ? 'bg-green-50 text-green-700 border border-green-200'
+                                  : 'bg-gray-50 text-gray-700 border border-gray-200'
+                            }`}
+                            title={opexDiff.tooltip}
+                          >
+                            {opexDiff.direction === 'up' && '↑'}
+                            {opexDiff.direction === 'down' && '↓'}
+                            {opexDiff.direction === 'flat' && '→'}
+                            {opexDiff.direction === 'new' && '↑'}
+                            {' '}{opexDiff.badgeText}
+                          </div>
+                          <div
+                            className={`text-xs font-medium px-2 py-1 rounded ${
+                              capexDiff.tone === 'danger'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : capexDiff.tone === 'success'
+                                  ? 'bg-green-50 text-green-700 border border-green-200'
+                                  : 'bg-gray-50 text-gray-700 border border-gray-200'
+                            }`}
+                            title={capexDiff.tooltip}
+                          >
+                            {capexDiff.direction === 'up' && '↑'}
+                            {capexDiff.direction === 'down' && '↓'}
+                            {capexDiff.direction === 'flat' && '→'}
+                            {capexDiff.direction === 'new' && '↑'}
+                            {' '}{capexDiff.badgeText}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </h4>
                 <ResponsiveContainer width="100%" height={350}>
@@ -1578,42 +1663,56 @@ export default function Dashboard() {
                 <h4 className="text-center text-sm font-semibold mb-2">
                   <div>Period 2: {secondPeriod?.quarter}</div>
                   <div className="flex justify-center gap-4 mt-2">
-                    <div className={`text-xs font-medium px-2 py-1 rounded ${(() => {
+                    {(() => {
                       const p1Warehouse = firstPeriodMetrics.costByQuarter?.reduce(
                         (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
                       const p2Warehouse = secondPeriodMetrics.costByQuarter?.reduce(
                         (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
-                      return calculateGrowth(p1Warehouse, p2Warehouse) >= 0
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-green-50 text-green-700 border border-green-200';
-                    })()}`}>
-                      <span className="font-semibold">Warehouse:</span> {(() => {
-                        const p1Warehouse = firstPeriodMetrics.costByQuarter?.reduce(
-                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
-                        const p2Warehouse = secondPeriodMetrics.costByQuarter?.reduce(
-                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
-                        const growth = calculateGrowth(p1Warehouse, p2Warehouse);
-                        return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
-                      })()}
-                    </div>
-                    <div className={`text-xs font-medium px-2 py-1 rounded ${(() => {
                       const p1Transport = firstPeriodMetrics.costByQuarter?.reduce(
                         (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
                       const p2Transport = secondPeriodMetrics.costByQuarter?.reduce(
                         (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
-                      return calculateGrowth(p1Transport, p2Transport) >= 0
-                        ? 'bg-red-50 text-red-700 border border-red-200'
-                        : 'bg-green-50 text-green-700 border border-green-200';
-                    })()}`}>
-                      <span className="font-semibold">Transportation:</span> {(() => {
-                        const p1Transport = firstPeriodMetrics.costByQuarter?.reduce(
-                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
-                        const p2Transport = secondPeriodMetrics.costByQuarter?.reduce(
-                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
-                        const growth = calculateGrowth(p1Transport, p2Transport);
-                        return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
-                      })()}
-                    </div>
+
+                      const warehouseDiff = computeDiff('Warehouse', p1Warehouse, p2Warehouse);
+                      const transportDiff = computeDiff('Transportation', p1Transport, p2Transport);
+
+                      return (
+                        <>
+                          <div
+                            className={`text-xs font-medium px-2 py-1 rounded ${
+                              warehouseDiff.tone === 'danger'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : warehouseDiff.tone === 'success'
+                                  ? 'bg-green-50 text-green-700 border border-green-200'
+                                  : 'bg-gray-50 text-gray-700 border border-gray-200'
+                            }`}
+                            title={warehouseDiff.tooltip}
+                          >
+                            {warehouseDiff.direction === 'up' && '↑'}
+                            {warehouseDiff.direction === 'down' && '↓'}
+                            {warehouseDiff.direction === 'flat' && '→'}
+                            {warehouseDiff.direction === 'new' && '↑'}
+                            {' '}{warehouseDiff.badgeText}
+                          </div>
+                          <div
+                            className={`text-xs font-medium px-2 py-1 rounded ${
+                              transportDiff.tone === 'danger'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : transportDiff.tone === 'success'
+                                  ? 'bg-green-50 text-green-700 border border-green-200'
+                                  : 'bg-gray-50 text-gray-700 border border-gray-200'
+                            }`}
+                            title={transportDiff.tooltip}
+                          >
+                            {transportDiff.direction === 'up' && '↑'}
+                            {transportDiff.direction === 'down' && '↓'}
+                            {transportDiff.direction === 'flat' && '→'}
+                            {transportDiff.direction === 'new' && '↑'}
+                            {' '}{transportDiff.badgeText}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </h4>
                 <ResponsiveContainer width="100%" height={350}>
