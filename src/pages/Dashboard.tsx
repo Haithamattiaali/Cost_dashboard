@@ -2653,48 +2653,64 @@ export default function Dashboard() {
                     // Period 1 is older, so labels go BELOW data points
                     const chartWidth = viewBox?.width || 800;
                     const chartHeight = viewBox?.height || 600;
+                    const leftMargin = 90; // Approximate Y-axis width
+                    const bottomMargin = 120; // X-axis height from margin
 
-                    // Detect proximity to Y-axis (first point)
-                    const isNearYAxis = index === 0 && x < 100;
-                    // Detect proximity to edges
+                    // Enhanced collision detection
+                    const isNearYAxis = x < leftMargin + 20; // More precise Y-axis detection
                     const isNearRightEdge = x > chartWidth - 100;
+                    const isNearXAxis = y > chartHeight - bottomMargin - 50; // Detect X-axis proximity
 
                     // Calculate smart offset positions to avoid axis interference
                     let offsetX = 0;
                     let textAnchor = "middle";
+                    let rotation = 0; // Text rotation angle
 
                     if (isNearYAxis) {
-                      // Move label to the right to avoid Y-axis
-                      offsetX = 35;
+                      // Move label significantly to the right to clear Y-axis
+                      offsetX = 50;
                       textAnchor = "start";
+                      // Angle the leader line more horizontally
                     } else if (isNearRightEdge) {
                       // Move label to the left to avoid right edge
-                      offsetX = -35;
+                      offsetX = -45;
                       textAnchor = "end";
+                    } else if (index === 1 || index === 2) {
+                      // Second and third points often conflict with axis labels
+                      // Apply diagonal positioning
+                      offsetX = index === 1 ? 35 : -35;
+                      rotation = index === 1 ? -25 : 25; // Angle text diagonally
                     } else {
-                      // Standard positioning with slight variation
-                      offsetX = index % 3 === 0 ? -15 : index % 3 === 1 ? 0 : 15;
+                      // Standard positioning with variation
+                      offsetX = index % 3 === 0 ? -20 : index % 3 === 1 ? 0 : 20;
                     }
 
-                    // Period 1 (older) goes BELOW - stagger heights to avoid overlap
-                    const baseOffsetY = 35;
-                    const offsetY = baseOffsetY + (index % 2 === 0 ? 0 : 15);
+                    // Period 1 (older) goes BELOW - adjust for X-axis proximity
+                    let baseOffsetY = 35;
+                    if (isNearXAxis) {
+                      // If too close to X-axis, reduce vertical offset and increase horizontal
+                      baseOffsetY = 25;
+                      offsetX = offsetX === 0 ? (index % 2 === 0 ? 40 : -40) : offsetX * 1.3;
+                    }
 
+                    const offsetY = baseOffsetY + (index % 2 === 0 ? 0 : 18);
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
+                    // Calculate leader line curve for better visual flow
+                    const midX = x + offsetX * 0.5;
+                    const midY = y + offsetY * 0.3;
+
                     return (
                       <g>
-                        {/* Leader line - faint gray for Period 1 */}
-                        <line
-                          x1={x}
-                          y1={y}
-                          x2={labelX}
-                          y2={labelY - 8}
+                        {/* Enhanced leader line with curve for Period 1 */}
+                        <path
+                          d={`M ${x} ${y} Q ${midX} ${midY} ${labelX} ${labelY - 8}`}
                           stroke={PROCEED_COLORS.secondary}
                           strokeWidth={1}
                           strokeDasharray="2,2"
-                          opacity={0.5}
+                          fill="none"
+                          opacity={0.4}
                         />
                         {/* Connector dot at label end */}
                         <circle
@@ -2702,19 +2718,20 @@ export default function Dashboard() {
                           cy={labelY - 8}
                           r={2}
                           fill={PROCEED_COLORS.secondary}
-                          opacity={0.5}
+                          opacity={0.4}
                         />
                         {/* Value label with Period 1 color (gray) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill={PROCEED_COLORS.secondary} // Gray color for Period 1
+                          fill={PROCEED_COLORS.secondary}
                           textAnchor={textAnchor}
                           fontSize={11}
                           fontWeight={600}
                           stroke="white"
                           strokeWidth={3}
                           paintOrder="stroke"
+                          transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY})` : undefined}
                         >
                           {formatCurrency(value, true)}
                         </text>
@@ -2767,56 +2784,68 @@ export default function Dashboard() {
                     // Period 2 is most recent, so labels go ABOVE data points
                     const chartWidth = viewBox?.width || 800;
                     const chartHeight = viewBox?.height || 600;
+                    const leftMargin = 90; // Approximate Y-axis width
+                    const topMargin = 80; // Top margin from chart config
 
-                    // Detect proximity to Y-axis (first point)
-                    const isNearYAxis = index === 0 && x < 100;
-                    // Detect proximity to edges
+                    // Enhanced collision detection
+                    const isNearYAxis = x < leftMargin + 20; // More precise Y-axis detection
                     const isNearRightEdge = x > chartWidth - 100;
-                    // Detect if label would be too high and interfere with top margin
-                    const isNearTop = y < 100;
+                    const isNearTop = y < topMargin + 30; // Detect top margin proximity
 
                     // Calculate smart offset positions to avoid axis interference
                     let offsetX = 0;
                     let textAnchor = "middle";
+                    let rotation = 0; // Text rotation angle
+                    let growthRotation = 0; // Separate rotation for growth percentage
 
                     if (isNearYAxis) {
-                      // Move label to the right and slightly angle to avoid Y-axis
-                      offsetX = 40;
+                      // Move label significantly to the right to clear Y-axis
+                      offsetX = 55;
                       textAnchor = "start";
+                      rotation = -15; // Slight angle away from axis
                     } else if (isNearRightEdge) {
                       // Move label to the left to avoid right edge
-                      offsetX = -40;
+                      offsetX = -50;
                       textAnchor = "end";
+                      rotation = 15; // Angle inward
+                    } else if (index === 1 || index === 2) {
+                      // Second and third points often conflict with axis labels
+                      // Apply diagonal positioning for better spacing
+                      offsetX = index === 1 ? 40 : -40;
+                      rotation = index === 1 ? -20 : 20; // Angle text diagonally
+                      growthRotation = rotation; // Keep growth percentage aligned
                     } else {
-                      // Standard positioning with variation to avoid overlap
-                      offsetX = index % 3 === 0 ? -20 : index % 3 === 1 ? 0 : 20;
+                      // Standard positioning with variation
+                      offsetX = index % 3 === 0 ? -25 : index % 3 === 1 ? 0 : 25;
                     }
 
-                    // Period 2 (most recent) goes ABOVE - stagger heights to avoid overlap
-                    const baseOffsetY = -45;
-                    let offsetY = baseOffsetY - (index % 2 === 0 ? 0 : 15);
-
-                    // If too close to top, angle the leader line more horizontally
+                    // Period 2 (most recent) goes ABOVE - adjust for top margin proximity
+                    let baseOffsetY = -50;
                     if (isNearTop) {
-                      offsetY = Math.max(offsetY, -30);
-                      offsetX = offsetX === 0 ? (index % 2 === 0 ? 30 : -30) : offsetX * 1.5;
+                      // If too close to top, reduce vertical offset and increase horizontal spread
+                      baseOffsetY = -35;
+                      offsetX = offsetX === 0 ? (index % 2 === 0 ? 45 : -45) : offsetX * 1.4;
+                      rotation = rotation === 0 ? (offsetX > 0 ? -30 : 30) : rotation; // Add angle if not already angled
                     }
 
+                    const offsetY = baseOffsetY - (index % 2 === 0 ? 0 : 20);
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
+                    // Calculate curved leader line for better visual flow
+                    const midX = x + offsetX * 0.6;
+                    const midY = y + offsetY * 0.4;
+
                     return (
                       <g>
-                        {/* Leader line - faint reddish for Period 2 */}
-                        <line
-                          x1={x}
-                          y1={y}
-                          x2={labelX}
-                          y2={labelY + 8}
+                        {/* Enhanced curved leader line for Period 2 */}
+                        <path
+                          d={`M ${x} ${y} Q ${midX} ${midY} ${labelX} ${labelY + 8}`}
                           stroke={PROCEED_COLORS.primary}
                           strokeWidth={1}
                           strokeDasharray="2,2"
-                          opacity={0.5}
+                          fill="none"
+                          opacity={0.4}
                         />
                         {/* Connector dot at label end */}
                         <circle
@@ -2824,37 +2853,53 @@ export default function Dashboard() {
                           cy={labelY + 8}
                           r={2}
                           fill={PROCEED_COLORS.primary}
-                          opacity={0.5}
+                          opacity={0.4}
                         />
                         {/* Value label with Period 2 color (reddish) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill={PROCEED_COLORS.primary} // Reddish color for Period 2
+                          fill={PROCEED_COLORS.primary}
                           textAnchor={textAnchor}
                           fontSize={12}
                           fontWeight={700}
                           stroke="white"
                           strokeWidth={3}
                           paintOrder="stroke"
+                          transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY})` : undefined}
                         >
                           {formatCurrency(value, true)}
                         </text>
-                        {/* Growth percentage positioned clearly below value */}
+                        {/* Growth percentage with smart positioning */}
                         {dataPoint?.growth !== undefined && (
-                          <text
-                            x={labelX}
-                            y={labelY + 14}
-                            fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
-                            textAnchor={textAnchor}
-                            fontSize={10}
-                            fontWeight={600}
-                            stroke="white"
-                            strokeWidth={2.5}
-                            paintOrder="stroke"
-                          >
-                            {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
-                          </text>
+                          <g>
+                            {/* Secondary leader line for growth percentage if needed */}
+                            {(Math.abs(rotation) > 15 || isNearYAxis || isNearRightEdge) && (
+                              <line
+                                x1={labelX}
+                                y1={labelY + 8}
+                                x2={labelX + (textAnchor === "start" ? 15 : textAnchor === "end" ? -15 : 0)}
+                                y2={labelY + 18}
+                                stroke={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                strokeWidth={0.5}
+                                opacity={0.3}
+                              />
+                            )}
+                            <text
+                              x={labelX + (textAnchor === "start" ? 15 : textAnchor === "end" ? -15 : 0)}
+                              y={labelY + 18}
+                              fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                              textAnchor={textAnchor}
+                              fontSize={10}
+                              fontWeight={600}
+                              stroke="white"
+                              strokeWidth={2.5}
+                              paintOrder="stroke"
+                              transform={growthRotation !== 0 ? `rotate(${growthRotation} ${labelX} ${labelY + 18})` : undefined}
+                            >
+                              {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                            </text>
+                          </g>
                         )}
                       </g>
                     );
