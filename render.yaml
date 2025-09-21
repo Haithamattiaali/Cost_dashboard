@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     region: oregon # You can change to singapore, frankfurt, or ohio
-    buildCommand: npm install && npm run build:backend
-    startCommand: node dist/backend/server.js
+    buildCommand: npm install
+    startCommand: npx tsx backend/server.ts
     envVars:
       - key: NODE_ENV
         value: production
