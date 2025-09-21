@@ -56,31 +56,12 @@ async function initializeServer() {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
-  // Middleware
+  // Middleware - Temporarily allow all origins for debugging
   app.use(cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
-
-      // Check if origin is in allowed list
-      const allowedOrigins = getConfig('security.corsOrigins') || [];
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // Check for Netlify wildcard
-      if (origin.endsWith('.netlify.app') || origin === 'https://protco.netlify.app') {
-        return callback(null, true);
-      }
-
-      // Allow localhost for development
-      if (origin.startsWith('http://localhost')) {
-        return callback(null, true);
-      }
-
-      callback(new Error('Not allowed by CORS'));
-    },
+    origin: true,  // Allow all origins
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
