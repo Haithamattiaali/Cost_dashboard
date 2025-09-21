@@ -56,19 +56,77 @@ async function initializeServer() {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
-  // Middleware - Temporarily allow all origins for debugging
-  app.use(cors({
-    origin: true,  // Allow all origins
+  // CORS Configuration - MUST be before all routes
+  const allowedOrigins = [
+    'https://protco.netlify.app',
+    'https://proceed-cost-dashboard.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+
+  // More robust CORS configuration for Render deployment
+  const corsOptions = {
+    origin: function(origin, callback) {
+      // Allow requests with no origin (mobile apps, Postman, etc)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else if (process.env.NODE_ENV === 'development') {
+        // In development, allow any origin
+        callback(null, true);
+      } else {
+        // In production, check if CORS_ORIGIN env var allows all
+        if (process.env.CORS_ORIGIN === '*') {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+  };
+
+  app.use(cors(corsOptions));
+
+  // Handle preflight OPTIONS requests explicitly for all routes
+  app.options('*', cors(corsOptions));
+
+  // Add custom middleware to ensure CORS headers are always set
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && (allowedOrigins.includes(origin) || process.env.CORS_ORIGIN === '*')) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
+
+    // Ensure headers are set for OPTIONS requests
+    if (req.method === 'OPTIONS') {
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+      res.header('Access-Control-Max-Age', '86400');
+      return res.sendStatus(204);
+    }
+
+    next();
+  });
+
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Configure multer for file uploads
+  // Configure multer for file uploads with better error handling
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
+      // Ensure upload directory exists
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
       cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
@@ -80,16 +138,16 @@ async function initializeServer() {
   const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-      const allowedTypes = getConfig('excel.allowedTypes');
+      const allowedTypes = getConfig('excel.allowedTypes') || ['.xlsx', '.xls'];
       const ext = path.extname(file.originalname).toLowerCase();
       if (allowedTypes.includes(ext)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid file type. Only Excel files are allowed.'));
+        cb(new Error('Invalid file type. Only Excel files (.xlsx, .xls) are allowed.'));
       }
     },
     limits: {
-      fileSize: getConfig('excel.maxFileSize'),
+      fileSize: getConfig('excel.maxFileSize') || 50 * 1024 * 1024, // Default 50MB
     }
   });
 
@@ -100,12 +158,20 @@ async function initializeServer() {
   app.use('/api/filters', filterRoutes());
   app.use('/api/playground', playgroundRoutes());
 
-  // Health check
+  // Health check with CORS headers verification
   app.get('/api/health', (req, res) => {
+    const origin = req.headers.origin;
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'PROCEED Cost Dashboard API',
+      cors: {
+        origin: origin || 'no-origin',
+        headers: {
+          'access-control-allow-origin': res.getHeaders()['access-control-allow-origin'] || 'not-set',
+          'access-control-allow-credentials': res.getHeaders()['access-control-allow-credentials'] || 'not-set'
+        }
+      }
     });
   });
 

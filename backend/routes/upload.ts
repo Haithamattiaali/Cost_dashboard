@@ -7,9 +7,20 @@ import fs from 'fs';
 export function uploadRoutes(upload: any): Router {
   const router = Router();
 
+  // Add middleware to log incoming requests for debugging
+  router.use((req, res, next) => {
+    console.log(`[Upload Route] ${req.method} ${req.path}`);
+    console.log('[Upload Route] Headers:', req.headers);
+    next();
+  });
+
   router.post('/excel', upload.single('file'), async (req: Request, res: Response) => {
     try {
+      console.log('[Upload] Processing file upload request');
+      console.log('[Upload] File received:', req.file ? 'Yes' : 'No');
+
       if (!req.file) {
+        console.error('[Upload] No file in request');
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
@@ -65,6 +76,13 @@ export function uploadRoutes(upload: any): Router {
       // Clean up uploaded file
       fs.unlinkSync(filePath);
 
+      // Ensure CORS headers are set on successful response
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
+
       res.json({
         success: true,
         message: 'Excel file processed successfully',
@@ -75,7 +93,23 @@ export function uploadRoutes(upload: any): Router {
       });
 
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('[Upload] Error processing upload:', error);
+
+      // Ensure CORS headers are set on error response
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
+
+      // Check if it's a multer error
+      if (error instanceof Error && error.message.includes('file type')) {
+        return res.status(400).json({
+          error: error.message,
+          details: 'Please upload only Excel files (.xlsx or .xls)'
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to process upload',
         details: error instanceof Error ? error.message : 'Unknown error'

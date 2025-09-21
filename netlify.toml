@@ -6,17 +6,29 @@
   NODE_VERSION = "18"
   NPM_VERSION = "9"
 
+# Handle API proxy to Render backend with proper CORS
+[[redirects]]
+  from = "/api/*"
+  to = "https://proceed-cost-dashboard-api.onrender.com/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Handle OPTIONS preflight requests for API routes
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+    Access-Control-Max-Age = "86400"
+    Access-Control-Allow-Credentials = "true"
+
+# SPA support - redirect all other routes to index.html (MUST BE AFTER API REDIRECTS)
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[redirects]]
-  from = "/api/*"
-  to = ":API_URL/api/:splat"
-  status = 200
-  force = true
-  headers = {X-From = "Netlify"}
 
 [[headers]]
   for = "/*"
