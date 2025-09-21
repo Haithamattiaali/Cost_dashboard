@@ -2650,39 +2650,66 @@ export default function Dashboard() {
                     const { x, y, value, index, viewBox } = props;
                     if (!value || value === 0) return null;
 
-                    // Calculate offset positions for leader lines
-                    const offsetY = index % 2 === 0 ? -35 : -50; // Alternate heights to avoid overlap
-                    const offsetX = index % 3 === 0 ? -20 : index % 3 === 1 ? 0 : 20; // Slight horizontal offset
+                    // Period 1 is older, so labels go BELOW data points
+                    const chartWidth = viewBox?.width || 800;
+                    const chartHeight = viewBox?.height || 600;
+
+                    // Detect proximity to Y-axis (first point)
+                    const isNearYAxis = index === 0 && x < 100;
+                    // Detect proximity to edges
+                    const isNearRightEdge = x > chartWidth - 100;
+
+                    // Calculate smart offset positions to avoid axis interference
+                    let offsetX = 0;
+                    let textAnchor = "middle";
+
+                    if (isNearYAxis) {
+                      // Move label to the right to avoid Y-axis
+                      offsetX = 35;
+                      textAnchor = "start";
+                    } else if (isNearRightEdge) {
+                      // Move label to the left to avoid right edge
+                      offsetX = -35;
+                      textAnchor = "end";
+                    } else {
+                      // Standard positioning with slight variation
+                      offsetX = index % 3 === 0 ? -15 : index % 3 === 1 ? 0 : 15;
+                    }
+
+                    // Period 1 (older) goes BELOW - stagger heights to avoid overlap
+                    const baseOffsetY = 35;
+                    const offsetY = baseOffsetY + (index % 2 === 0 ? 0 : 15);
+
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
                     return (
                       <g>
-                        {/* Leader line - faint gray */}
+                        {/* Leader line - faint gray for Period 1 */}
                         <line
                           x1={x}
                           y1={y}
                           x2={labelX}
-                          y2={labelY + 10}
-                          stroke="#d1d5db"
+                          y2={labelY - 8}
+                          stroke="#9ca3af"
                           strokeWidth={1}
                           strokeDasharray="2,2"
-                          opacity={0.6}
+                          opacity={0.5}
                         />
                         {/* Connector dot at label end */}
                         <circle
                           cx={labelX}
-                          cy={labelY + 10}
+                          cy={labelY - 8}
                           r={2}
-                          fill="#d1d5db"
-                          opacity={0.6}
+                          fill="#9ca3af"
+                          opacity={0.5}
                         />
                         {/* Value label with Period 1 color (gray) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill={PROCEED_COLORS.secondary} // Gray color for Period 1
-                          textAnchor="middle"
+                          fill="#6b7280" // Gray color for Period 1
+                          textAnchor={textAnchor}
                           fontSize={11}
                           fontWeight={600}
                           stroke="white"
@@ -2705,7 +2732,7 @@ export default function Dashboard() {
                 dot={{ r: 4, fill: PROCEED_COLORS.primary }}
                 label={{
                   content: (props: any) => {
-                    const { x, y, value, index } = props;
+                    const { x, y, value, index, viewBox } = props;
                     if (!value || value === 0) return null;
 
                     // Reconstruct the data to access growth values
@@ -2737,39 +2764,74 @@ export default function Dashboard() {
 
                     const dataPoint = chartData[index];
 
-                    // Calculate offset positions for leader lines
-                    const offsetY = index % 2 === 0 ? 45 : 60; // Alternate heights below for Period 2
-                    const offsetX = index % 3 === 0 ? -25 : index % 3 === 1 ? 0 : 25; // Horizontal variation
+                    // Period 2 is most recent, so labels go ABOVE data points
+                    const chartWidth = viewBox?.width || 800;
+                    const chartHeight = viewBox?.height || 600;
+
+                    // Detect proximity to Y-axis (first point)
+                    const isNearYAxis = index === 0 && x < 100;
+                    // Detect proximity to edges
+                    const isNearRightEdge = x > chartWidth - 100;
+                    // Detect if label would be too high and interfere with top margin
+                    const isNearTop = y < 100;
+
+                    // Calculate smart offset positions to avoid axis interference
+                    let offsetX = 0;
+                    let textAnchor = "middle";
+
+                    if (isNearYAxis) {
+                      // Move label to the right and slightly angle to avoid Y-axis
+                      offsetX = 40;
+                      textAnchor = "start";
+                    } else if (isNearRightEdge) {
+                      // Move label to the left to avoid right edge
+                      offsetX = -40;
+                      textAnchor = "end";
+                    } else {
+                      // Standard positioning with variation to avoid overlap
+                      offsetX = index % 3 === 0 ? -20 : index % 3 === 1 ? 0 : 20;
+                    }
+
+                    // Period 2 (most recent) goes ABOVE - stagger heights to avoid overlap
+                    const baseOffsetY = -45;
+                    let offsetY = baseOffsetY - (index % 2 === 0 ? 0 : 15);
+
+                    // If too close to top, angle the leader line more horizontally
+                    if (isNearTop) {
+                      offsetY = Math.max(offsetY, -30);
+                      offsetX = offsetX === 0 ? (index % 2 === 0 ? 30 : -30) : offsetX * 1.5;
+                    }
+
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
                     return (
                       <g>
-                        {/* Leader line - faint connector */}
+                        {/* Leader line - faint reddish for Period 2 */}
                         <line
                           x1={x}
                           y1={y}
                           x2={labelX}
-                          y2={labelY - 10}
-                          stroke="#fca5a5"
+                          y2={labelY + 8}
+                          stroke="#f87171"
                           strokeWidth={1}
                           strokeDasharray="2,2"
-                          opacity={0.6}
+                          opacity={0.5}
                         />
                         {/* Connector dot at label end */}
                         <circle
                           cx={labelX}
-                          cy={labelY - 10}
+                          cy={labelY + 8}
                           r={2}
-                          fill="#fca5a5"
-                          opacity={0.6}
+                          fill="#f87171"
+                          opacity={0.5}
                         />
                         {/* Value label with Period 2 color (reddish) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill={PROCEED_COLORS.primary} // Reddish color for Period 2
-                          textAnchor="middle"
+                          fill="#dc2626" // Reddish color for Period 2
+                          textAnchor={textAnchor}
                           fontSize={12}
                           fontWeight={700}
                           stroke="white"
@@ -2778,13 +2840,13 @@ export default function Dashboard() {
                         >
                           {formatCurrency(value, true)}
                         </text>
-                        {/* Growth percentage with clear positioning */}
+                        {/* Growth percentage positioned clearly below value */}
                         {dataPoint?.growth !== undefined && (
                           <text
                             x={labelX}
                             y={labelY + 14}
                             fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
-                            textAnchor="middle"
+                            textAnchor={textAnchor}
                             fontSize={10}
                             fontWeight={600}
                             stroke="white"
