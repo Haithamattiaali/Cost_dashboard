@@ -2729,47 +2729,67 @@ export default function Dashboard() {
                     let baseOffsetY = 40;
 
                     // X-axis label collision detection
-                    // Estimate where X-axis labels would be (typically 10-20px below chart bottom)
-                    const xAxisLabelZone = chartHeight - bottomMargin + 10;
+                    // X-axis labels are positioned at a 45-degree angle below the chart
+                    const xAxisLabelTop = chartHeight - bottomMargin + 5;
                     const labelHeight = 15; // Approximate label height
-                    const safetyMargin = 25; // Extra margin for safety
+                    const labelWidth = 50; // Approximate width for value labels
+                    const minimumClearance = 16; // Minimum 16px clearance from axis text
 
                     // Check if label would collide with X-axis category text
-                    const wouldCollideWithXAxisLabel = (y + baseOffsetY) > (xAxisLabelZone - safetyMargin);
+                    const labelBottom = y + baseOffsetY + labelHeight/2;
+                    const wouldCollideWithXAxisLabel = labelBottom > (xAxisLabelTop - minimumClearance);
+
+                    // For "Other" category specifically, check horizontal collision too
+                    const categoryName = payload?.name || '';
+                    const isOtherCategory = categoryName === 'Other' || index === 7;
 
                     // Special Y offset adjustments
                     if (isFirstPoint && isNearYAxis) {
                       baseOffsetY = 35; // Less vertical, more horizontal
                     } else if (isLastPoint && isNearRightEdge) {
                       baseOffsetY = 35;
+                    } else if (isOtherCategory && wouldCollideWithXAxisLabel) {
+                      // Special handling for "Other" category with X-axis collision
+                      // Apply leftward displacement to avoid the "Other" text on X-axis
+                      baseOffsetY = 45; // Moderate downward to create space
+                      offsetX = -50; // Shift left to avoid "Other" text
+                      rotation = 0; // Keep horizontal for readability
+                      textAnchor = "end"; // Align text to the right of position
                     } else if (needsAdjacentOffset) {
-                      // Special vertical staggering for Other and Insurance
+                      // Handle Other and Insurance proximity issues
                       if (index === 7) {
-                        // Other - check for X-axis collision and adjust
-                        if (wouldCollideWithXAxisLabel) {
-                          baseOffsetY = 55; // Push much further down
-                          offsetX = -55; // Also push more horizontally
-                          rotation = 30; // Angle more dramatically
-                        } else {
-                          baseOffsetY = 38; // Standard position
+                        // Other - already handled above if colliding with X-axis
+                        if (!wouldCollideWithXAxisLabel) {
+                          baseOffsetY = 38;
+                          offsetX = -30; // Still shift left but less
+                          textAnchor = "end";
                         }
                       } else if (index === 8) {
-                        // Insurance - check for X-axis collision and adjust
+                        // Insurance
                         if (wouldCollideWithXAxisLabel) {
-                          baseOffsetY = 65; // Push even further down
-                          offsetX = 55; // Push horizontally opposite direction
-                          rotation = -30; // Angle opposite direction
+                          baseOffsetY = 50;
+                          offsetX = 40; // Shift right
+                          rotation = -15;
+                          textAnchor = "start";
                         } else {
-                          baseOffsetY = 48; // Standard position
+                          baseOffsetY = 48;
+                          offsetX = 30;
+                          textAnchor = "start";
                         }
                       }
                     } else if (wouldCollideWithXAxisLabel) {
-                      // Universal collision prevention for any point
-                      baseOffsetY = Math.max(baseOffsetY, 60); // Ensure minimum distance
-                      // Increase horizontal displacement based on index
-                      offsetX = offsetX === 0 ? (index % 2 === 0 ? -45 : 45) : offsetX * 1.8;
-                      // Add angle if not already angled
-                      rotation = rotation === 0 ? (offsetX < 0 ? 30 : -30) : rotation * 1.5;
+                      // Universal collision prevention with smart directional displacement
+                      baseOffsetY = 45; // Moderate vertical displacement
+
+                      // Determine displacement direction based on position in chart
+                      // Categories on left half shift left, right half shift right
+                      const chartCenterX = chartWidth / 2;
+                      const shouldShiftLeft = x < chartCenterX;
+
+                      // Apply horizontal displacement with leader line
+                      offsetX = shouldShiftLeft ? -45 : 45;
+                      rotation = 0; // Keep text horizontal for readability
+                      textAnchor = shouldShiftLeft ? "end" : "start";
                     } else if (isVeryNearXAxis) {
                       // Critical X-axis proximity - reduce vertical, increase horizontal
                       baseOffsetY = 25;
@@ -2794,29 +2814,34 @@ export default function Dashboard() {
                     const labelX = x + offsetX;
                     const labelY = y + baseOffsetY;
 
-                    // Calculate curved leader line
+                    // Calculate curved leader line - always show when displaced horizontally
+                    const needsLeaderLine = Math.abs(offsetX) > 20 || wouldCollideWithXAxisLabel;
                     const midX = x + offsetX * 0.6;
-                    const midY = y + offsetY * 0.4;
+                    const midY = y + baseOffsetY * 0.4;
 
                     return (
                       <g>
-                        {/* Curved leader line for Period 1 */}
-                        <path
-                          d={`M ${x} ${y} Q ${midX} ${midY} ${labelX} ${labelY - 8}`}
-                          stroke={PROCEED_COLORS.secondary}
-                          strokeWidth={1}
-                          strokeDasharray="2,2"
-                          fill="none"
-                          opacity={0.35}
-                        />
-                        {/* Connector dot */}
-                        <circle
-                          cx={labelX}
-                          cy={labelY - 8}
-                          r={2}
-                          fill={PROCEED_COLORS.secondary}
-                          opacity={0.35}
-                        />
+                        {/* Curved leader line for Period 1 - show when displaced */}
+                        {needsLeaderLine && (
+                          <path
+                            d={`M ${x} ${y} Q ${midX} ${midY} ${labelX} ${labelY - 8}`}
+                            stroke={PROCEED_COLORS.secondary}
+                            strokeWidth={1}
+                            strokeDasharray="2,2"
+                            fill="none"
+                            opacity={0.35}
+                          />
+                        )}
+                        {/* Connector dot - only show with leader line */}
+                        {needsLeaderLine && (
+                          <circle
+                            cx={labelX}
+                            cy={labelY - 8}
+                            r={2}
+                            fill={PROCEED_COLORS.secondary}
+                            opacity={0.35}
+                          />
+                        )}
                         {/* Value label - gray for Period 1 */}
                         <text
                           x={labelX}
