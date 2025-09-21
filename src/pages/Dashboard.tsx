@@ -1192,17 +1192,25 @@ export default function Dashboard() {
               {/* Period 2 Pie */}
               <div>
                 <h4 className="text-center text-sm font-semibold mb-2">
-                  Period 2: {secondPeriod?.quarter}
-                  <span className={`ml-2 ${
-                    calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
-                                   secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex) >= 0
-                      ? 'text-red-600' : 'text-green-600'
-                  }`}>
-                    ({calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
-                                    secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
-                    {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex + firstPeriodMetrics.totalCapex,
-                                            secondPeriodMetrics.totalOpex + secondPeriodMetrics.totalCapex)).toFixed(1)}%)
-                  </span>
+                  <div>Period 2: {secondPeriod?.quarter}</div>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className={`text-xs font-medium px-2 py-1 rounded ${
+                      calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-green-50 text-green-700 border border-green-200'
+                    }`}>
+                      <span className="font-semibold">OPEX:</span> {calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0 ? '↑' : '↓'}
+                      {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex)).toFixed(1)}%
+                    </div>
+                    <div className={`text-xs font-medium px-2 py-1 rounded ${
+                      calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-green-50 text-green-700 border border-green-200'
+                    }`}>
+                      <span className="font-semibold">CAPEX:</span> {calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
+                      {Math.abs(calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex)).toFixed(1)}%
+                    </div>
+                  </div>
                 </h4>
                 <ResponsiveContainer width="100%" height={350}>
                   <PieChart>
@@ -1568,27 +1576,45 @@ export default function Dashboard() {
               {/* Period 2 Pie */}
               <div>
                 <h4 className="text-center text-sm font-semibold mb-2">
-                  Period 2: {secondPeriod?.quarter}
-                  <span className={`ml-2 ${(() => {
-                    const p1Total = (firstPeriodMetrics.costByQuarter?.reduce(
-                      (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
-                      (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
-                    const p2Total = (secondPeriodMetrics.costByQuarter?.reduce(
-                      (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
-                      (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
-                    return calculateGrowth(p1Total, p2Total) >= 0 ? 'text-red-600' : 'text-green-600';
-                  })()}`}>
-                    ({(() => {
-                      const p1Total = (firstPeriodMetrics.costByQuarter?.reduce(
-                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
-                        (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
-                      const p2Total = (secondPeriodMetrics.costByQuarter?.reduce(
-                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0) +
-                        (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0);
-                      const growth = calculateGrowth(p1Total, p2Total);
-                      return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
-                    })()})
-                  </span>
+                  <div>Period 2: {secondPeriod?.quarter}</div>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className={`text-xs font-medium px-2 py-1 rounded ${(() => {
+                      const p1Warehouse = firstPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                      const p2Warehouse = secondPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                      return calculateGrowth(p1Warehouse, p2Warehouse) >= 0
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-green-50 text-green-700 border border-green-200';
+                    })()}`}>
+                      <span className="font-semibold">Warehouse:</span> {(() => {
+                        const p1Warehouse = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const p2Warehouse = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.warehouseCost || 0) + (q.proceed3PLWHCost || 0), 0) || 0;
+                        const growth = calculateGrowth(p1Warehouse, p2Warehouse);
+                        return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
+                      })()}
+                    </div>
+                    <div className={`text-xs font-medium px-2 py-1 rounded ${(() => {
+                      const p1Transport = firstPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                      const p2Transport = secondPeriodMetrics.costByQuarter?.reduce(
+                        (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                      return calculateGrowth(p1Transport, p2Transport) >= 0
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-green-50 text-green-700 border border-green-200';
+                    })()}`}>
+                      <span className="font-semibold">Transportation:</span> {(() => {
+                        const p1Transport = firstPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        const p2Transport = secondPeriodMetrics.costByQuarter?.reduce(
+                          (sum: number, q: any) => sum + (q.transportationCost || 0) + (q.proceed3PLTRSCost || 0), 0) || 0;
+                        const growth = calculateGrowth(p1Transport, p2Transport);
+                        return (growth >= 0 ? '↑' : '↓') + Math.abs(growth).toFixed(1) + '%';
+                      })()}
+                    </div>
+                  </div>
                 </h4>
                 <ResponsiveContainer width="100%" height={350}>
                   <PieChart>
