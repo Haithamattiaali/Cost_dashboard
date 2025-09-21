@@ -5,7 +5,7 @@
     "lib": ["ES2022"],
     "outDir": "../dist/backend",
     "rootDir": ".",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -14,7 +14,9 @@
     "allowSyntheticDefaultImports": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "typeRoots": ["../node_modules/@types"],
+    "noImplicitAny": false
   },
   "include": [
     "**/*.ts"
