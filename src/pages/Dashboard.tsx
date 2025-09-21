@@ -2609,7 +2609,7 @@ export default function Dashboard() {
                   .sort((a, b) => b.period2 - a.period2) // Sort by Period 2 values
                   .slice(0, 10); // Show top 10 categories
               })()}
-              margin={{ top: 50, right: 30, left: 20, bottom: 100 }}
+              margin={{ top: 80, right: 40, left: 20, bottom: 120 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -2644,25 +2644,54 @@ export default function Dashboard() {
                 name={`Period 1 (${firstPeriod?.quarter})`}
                 stroke={PROCEED_COLORS.secondary}
                 strokeWidth={2}
-                dot={{ r: 4 }}
+                dot={{ r: 4, fill: PROCEED_COLORS.secondary }}
                 label={{
-                  position: 'bottom',
                   content: (props: any) => {
-                    const { x, y, value } = props;
+                    const { x, y, value, index, viewBox } = props;
+                    if (!value || value === 0) return null;
+
+                    // Calculate offset positions for leader lines
+                    const offsetY = index % 2 === 0 ? -35 : -50; // Alternate heights to avoid overlap
+                    const offsetX = index % 3 === 0 ? -20 : index % 3 === 1 ? 0 : 20; // Slight horizontal offset
+                    const labelX = x + offsetX;
+                    const labelY = y + offsetY;
+
                     return (
-                      <text
-                        x={x}
-                        y={y + 15}
-                        fill="#1a1a1a"
-                        textAnchor="middle"
-                        fontSize={11}
-                        fontWeight={600}
-                        stroke="white"
-                        strokeWidth={2}
-                        paintOrder="stroke"
-                      >
-                        {formatCurrency(value, true)}
-                      </text>
+                      <g>
+                        {/* Leader line - faint gray */}
+                        <line
+                          x1={x}
+                          y1={y}
+                          x2={labelX}
+                          y2={labelY + 10}
+                          stroke="#d1d5db"
+                          strokeWidth={1}
+                          strokeDasharray="2,2"
+                          opacity={0.6}
+                        />
+                        {/* Connector dot at label end */}
+                        <circle
+                          cx={labelX}
+                          cy={labelY + 10}
+                          r={2}
+                          fill="#d1d5db"
+                          opacity={0.6}
+                        />
+                        {/* Value label with Period 1 color (gray) */}
+                        <text
+                          x={labelX}
+                          y={labelY}
+                          fill={PROCEED_COLORS.secondary} // Gray color for Period 1
+                          textAnchor="middle"
+                          fontSize={11}
+                          fontWeight={600}
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
+                        >
+                          {formatCurrency(value, true)}
+                        </text>
+                      </g>
                     );
                   }
                 }}
@@ -2673,11 +2702,11 @@ export default function Dashboard() {
                 name={`Period 2 (${secondPeriod?.quarter})`}
                 stroke={PROCEED_COLORS.primary}
                 strokeWidth={2}
-                dot={{ r: 4 }}
+                dot={{ r: 4, fill: PROCEED_COLORS.primary }}
                 label={{
-                  position: 'top',
                   content: (props: any) => {
                     const { x, y, value, index } = props;
+                    if (!value || value === 0) return null;
 
                     // Reconstruct the data to access growth values
                     const categoriesP1: { [key: string]: number } = {};
@@ -2708,31 +2737,58 @@ export default function Dashboard() {
 
                     const dataPoint = chartData[index];
 
+                    // Calculate offset positions for leader lines
+                    const offsetY = index % 2 === 0 ? 45 : 60; // Alternate heights below for Period 2
+                    const offsetX = index % 3 === 0 ? -25 : index % 3 === 1 ? 0 : 25; // Horizontal variation
+                    const labelX = x + offsetX;
+                    const labelY = y + offsetY;
+
                     return (
                       <g>
+                        {/* Leader line - faint connector */}
+                        <line
+                          x1={x}
+                          y1={y}
+                          x2={labelX}
+                          y2={labelY - 10}
+                          stroke="#fca5a5"
+                          strokeWidth={1}
+                          strokeDasharray="2,2"
+                          opacity={0.6}
+                        />
+                        {/* Connector dot at label end */}
+                        <circle
+                          cx={labelX}
+                          cy={labelY - 10}
+                          r={2}
+                          fill="#fca5a5"
+                          opacity={0.6}
+                        />
+                        {/* Value label with Period 2 color (reddish) */}
                         <text
-                          x={x}
-                          y={y - 18}
-                          fill="#1a1a1a"
+                          x={labelX}
+                          y={labelY}
+                          fill={PROCEED_COLORS.primary} // Reddish color for Period 2
                           textAnchor="middle"
                           fontSize={12}
                           fontWeight={700}
                           stroke="white"
-                          strokeWidth={2.5}
+                          strokeWidth={3}
                           paintOrder="stroke"
                         >
                           {formatCurrency(value, true)}
                         </text>
+                        {/* Growth percentage with clear positioning */}
                         {dataPoint?.growth !== undefined && (
                           <text
-                            x={x}
-                            y={y - 5}
+                            x={labelX}
+                            y={labelY + 14}
                             fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
                             textAnchor="middle"
-                            fontSize={11}
-                            fontWeight={700}
+                            fontSize={10}
+                            fontWeight={600}
                             stroke="white"
-                            strokeWidth={2}
+                            strokeWidth={2.5}
                             paintOrder="stroke"
                           >
                             {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
