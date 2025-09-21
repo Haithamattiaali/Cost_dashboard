@@ -808,9 +808,14 @@ export const SelectionReportCard: React.FC<SelectionReportData> = ({
                 </div>
               </div>
               <div className="pt-3 border-t border-[#e2e1e6]">
-                <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold">Coverage</div>
-                <div className="text-2xl font-bold bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] bg-clip-text text-transparent">
-                  {metrics.percentageOfValue.toFixed(1)}%
+                <div className="text-xs text-[#717171] uppercase tracking-wider mb-1 font-semibold" title="Selected Value ÷ Total Quarter">Coverage</div>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] bg-clip-text text-transparent">
+                    {metrics.percentageOfValue.toFixed(1)}%
+                  </div>
+                  <span className="text-xs text-[#717171]" title={`${AnalyticsService.formatCurrency(metrics.totalValue)} of ${AnalyticsService.formatCurrency(metrics.grandTotal)}`}>
+                    (Selected ÷ Total)
+                  </span>
                 </div>
               </div>
             </div>
@@ -820,19 +825,26 @@ export const SelectionReportCard: React.FC<SelectionReportData> = ({
           gradient={true}
         />
         <MetricCard
-          title="Selected Categories"
+          title="Selected Categories — % of Total"
           value={
             categoryData.length > 0 ? (
-              <div className={`space-y-2 ${categoryData.length > 10 ? 'max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
-                {categoryData.map((category, idx) => (
+              <div className={`space-y-3 ${categoryData.length > 10 ? 'max-h-96 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
+                {categoryData.slice(0, 10).map((category, idx) => (
                   <div key={idx} className="group">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-gray-600 truncate max-w-[180px]" title={category.name}>
-                        {category.name}
-                      </span>
-                      <span className="text-xs font-bold text-[#9e1f63]">
-                        {category.percentage.toFixed(1)}%
-                      </span>
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-gray-700 font-medium block truncate" title={category.name}>
+                          {category.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {AnalyticsService.formatCurrency(category.value)}
+                        </span>
+                      </div>
+                      <div className="text-right ml-2">
+                        <span className="text-xs font-bold text-[#9e1f63]">
+                          {category.percentage.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
                     <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div
@@ -840,10 +852,32 @@ export const SelectionReportCard: React.FC<SelectionReportData> = ({
                         style={{
                           width: `${Math.min(category.percentage, 100)}%`
                         }}
+                        title={`${category.name}: ${AnalyticsService.formatCurrency(category.value)} (${category.percentage.toFixed(1)}% of Total)`}
                       />
                     </div>
                   </div>
                 ))}
+                {categoryData.length > 10 && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs text-gray-600 font-medium italic">
+                          Other ({categoryData.length - 10} categories)
+                        </span>
+                        <span className="text-xs text-gray-500 block">
+                          {AnalyticsService.formatCurrency(
+                            categoryData.slice(10).reduce((sum, cat) => sum + cat.value, 0)
+                          )}
+                        </span>
+                      </div>
+                      <div className="text-right ml-2">
+                        <span className="text-xs font-bold text-gray-500">
+                          {categoryData.slice(10).reduce((sum, cat) => sum + cat.percentage, 0).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-sm text-gray-500">No categories selected</div>
