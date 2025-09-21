@@ -2647,7 +2647,7 @@ export default function Dashboard() {
                 dot={{ r: 4, fill: PROCEED_COLORS.secondary }}
                 label={{
                   content: (props: any) => {
-                    const { x, y, value, index, viewBox } = props;
+                    const { x, y, value, index, viewBox, payload } = props;
                     if (!value || value === 0) return null;
 
                     // Get total number of data points to detect last point
@@ -2666,6 +2666,10 @@ export default function Dashboard() {
                     const isNearRightEdge = x > chartWidth - 120;
                     const isNearXAxis = y > chartHeight - bottomMargin - 60;
                     const isVeryNearXAxis = y > chartHeight - bottomMargin - 40; // Critical proximity
+
+                    // Check for adjacent label proximity (Other and Insurance typically at indices 7-8)
+                    const isOtherOrInsurance = index >= 7 && index <= 8;
+                    const needsAdjacentOffset = isOtherOrInsurance;
 
                     // Calculate smart offset positions
                     let offsetX = 0;
@@ -2702,6 +2706,20 @@ export default function Dashboard() {
                         // Standard alternating pattern
                         offsetX = index % 2 === 0 ? -30 : 30;
                       }
+                    } else if (needsAdjacentOffset) {
+                      // Special handling for Other and Insurance (indices 7-8)
+                      // These labels often collide due to proximity
+                      if (index === 7) {
+                        // "Other" - displace left and angle
+                        offsetX = -45;
+                        rotation = 25;
+                        textAnchor = "end";
+                      } else if (index === 8) {
+                        // "Insurance" - displace right and angle
+                        offsetX = 45;
+                        rotation = -25;
+                        textAnchor = "start";
+                      }
                     } else {
                       // Standard positioning for remaining points
                       offsetX = index % 3 === 0 ? -25 : index % 3 === 1 ? 0 : 25;
@@ -2715,6 +2733,13 @@ export default function Dashboard() {
                       baseOffsetY = 35; // Less vertical, more horizontal
                     } else if (isLastPoint && isNearRightEdge) {
                       baseOffsetY = 35;
+                    } else if (needsAdjacentOffset) {
+                      // Special vertical staggering for Other and Insurance
+                      if (index === 7) {
+                        baseOffsetY = 38; // Other - slightly higher
+                      } else if (index === 8) {
+                        baseOffsetY = 48; // Insurance - lower to avoid overlap
+                      }
                     } else if (isVeryNearXAxis) {
                       // Critical X-axis proximity - reduce vertical, increase horizontal
                       baseOffsetY = 25;
@@ -2724,7 +2749,8 @@ export default function Dashboard() {
                       offsetX = offsetX * 1.3; // Moderate horizontal increase
                     }
 
-                    const offsetY = baseOffsetY + (index % 2 === 0 ? 0 : 15);
+                    // Apply standard vertical variation, but skip for Other/Insurance as they have custom offsets
+                    const offsetY = needsAdjacentOffset ? baseOffsetY : baseOffsetY + (index % 2 === 0 ? 0 : 15);
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
