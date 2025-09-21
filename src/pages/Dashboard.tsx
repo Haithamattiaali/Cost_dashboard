@@ -2668,7 +2668,7 @@ export default function Dashboard() {
                     const isVeryNearXAxis = y > chartHeight - bottomMargin - 40; // Critical proximity
 
                     // Check for adjacent label proximity (Other and Insurance typically at indices 7-8)
-                    const isOtherOrInsurance = index >= 7 && index <= 8;
+                    const isOtherOrInsurance = index >= 6 && index <= 7;  // Other is 6, Insurance is 7
                     const needsAdjacentOffset = isOtherOrInsurance;
 
                     // Calculate smart offset positions
@@ -2707,14 +2707,14 @@ export default function Dashboard() {
                         offsetX = index % 2 === 0 ? -30 : 30;
                       }
                     } else if (needsAdjacentOffset) {
-                      // Special handling for Other and Insurance (indices 7-8)
+                      // Special handling for Other and Insurance (indices 6-7)
                       // These labels often collide due to proximity
-                      if (index === 7) {
+                      if (index === 6) {
                         // "Other" - displace left and angle
                         offsetX = -45;
                         rotation = 25;
                         textAnchor = "end";
-                      } else if (index === 8) {
+                      } else if (index === 7) {
                         // "Insurance" - displace right and angle
                         offsetX = 45;
                         rotation = -25;
@@ -2741,30 +2741,26 @@ export default function Dashboard() {
 
                     // For "Other" category specifically, check horizontal collision too
                     const categoryName = payload?.name || '';
-                    const isOtherCategory = categoryName === 'Other' || index === 7;
+                    const isOtherCategory = categoryName === 'Other' || index === 6;  // Other is index 6, before Insurance
+
+                    // Force "Other" category to always be treated as colliding for better placement
+                    const otherCategoryNeedsDisplacement = isOtherCategory;
 
                     // Special Y offset adjustments
                     if (isFirstPoint && isNearYAxis) {
                       baseOffsetY = 35; // Less vertical, more horizontal
                     } else if (isLastPoint && isNearRightEdge) {
                       baseOffsetY = 35;
-                    } else if (isOtherCategory && wouldCollideWithXAxisLabel) {
-                      // Special handling for "Other" category with X-axis collision
+                    } else if (otherCategoryNeedsDisplacement) {
+                      // Special handling for "Other" category - always displace to avoid X-axis text
                       // Apply leftward displacement to avoid the "Other" text on X-axis
-                      baseOffsetY = 45; // Moderate downward to create space
-                      offsetX = -50; // Shift left to avoid "Other" text
+                      baseOffsetY = 75; // Move further down to go under "Other" label
+                      offsetX = -110; // Extended left shift to position well clear of "Other" text
                       rotation = 0; // Keep horizontal for readability
                       textAnchor = "end"; // Align text to the right of position
-                    } else if (needsAdjacentOffset) {
-                      // Handle Other and Insurance proximity issues
+                    } else if (needsAdjacentOffset && index !== 6) {
+                      // Handle Insurance proximity issues (Other already handled above)
                       if (index === 7) {
-                        // Other - already handled above if colliding with X-axis
-                        if (!wouldCollideWithXAxisLabel) {
-                          baseOffsetY = 38;
-                          offsetX = -30; // Still shift left but less
-                          textAnchor = "end";
-                        }
-                      } else if (index === 8) {
                         // Insurance
                         if (wouldCollideWithXAxisLabel) {
                           baseOffsetY = 50;
@@ -2804,7 +2800,7 @@ export default function Dashboard() {
 
                     // Final collision check - if still too close after all adjustments, push down more
                     const finalY = y + offsetY;
-                    if (finalY > xAxisLabelZone - 20) {
+                    if (finalY > xAxisLabelTop - 20) {
                       // Emergency displacement - push significantly outward and down
                       baseOffsetY += 25;
                       offsetX = offsetX * 1.5;
@@ -2816,8 +2812,9 @@ export default function Dashboard() {
 
                     // Calculate curved leader line - always show when displaced horizontally
                     const needsLeaderLine = Math.abs(offsetX) > 20 || wouldCollideWithXAxisLabel;
-                    const midX = x + offsetX * 0.6;
-                    const midY = y + baseOffsetY * 0.4;
+                    // Special curve for "Other" category to ensure it goes under the X-axis label
+                    const midX = otherCategoryNeedsDisplacement ? x + offsetX * 0.5 : x + offsetX * 0.6;
+                    const midY = otherCategoryNeedsDisplacement ? y + baseOffsetY * 0.6 : y + baseOffsetY * 0.4;
 
                     return (
                       <g>
@@ -2909,15 +2906,16 @@ export default function Dashboard() {
                     const dataPoint = chartData[index];
 
                     // Period 2 is most recent, so labels go ABOVE data points
-                    const chartWidth = viewBox?.width || 800;
-                    const chartHeight = viewBox?.height || 600;
-                    const leftMargin = 90; // Y-axis width
-                    const topMargin = 80; // Top margin
+                    // Reuse chart dimensions from outer scope or recalculate
+                    const p2ChartWidth = viewBox?.width || 800;
+                    const p2ChartHeight = viewBox?.height || 600;
+                    const p2LeftMargin = 90; // Y-axis width
+                    const p2TopMargin = 80; // Top margin
 
-                    // Enhanced collision detection
-                    const isNearYAxis = x < leftMargin + 30;
-                    const isNearRightEdge = x > chartWidth - 120;
-                    const isNearTop = y < topMargin + 40;
+                    // Enhanced collision detection for Period 2
+                    const p2IsNearYAxis = x < p2LeftMargin + 30;
+                    const p2IsNearRightEdge = x > p2ChartWidth - 120;
+                    const p2IsNearTop = y < p2TopMargin + 40;
 
                     // Calculate smart offset positions
                     let offsetX = 0;
@@ -2927,7 +2925,7 @@ export default function Dashboard() {
                     let growthOffsetY = 16;
 
                     // SPECIAL HANDLING FOR EDGE CASES
-                    if (isFirstPoint && isNearYAxis) {
+                    if (isFirstPoint && p2IsNearYAxis) {
                       // Labor Salary (leftmost) - move up-left corner
                       offsetX = -45;
                       textAnchor = "end";
@@ -2935,11 +2933,11 @@ export default function Dashboard() {
                       // Growth percentage directly under Period 2 value
                       growthOffsetX = 0;  // Align with Period 2 label
                       growthOffsetY = 18; // Just below Period 2 value
-                    } else if (isLastPoint && isNearRightEdge) {
-                      // Governmental Fees (rightmost) - move up-right corner
-                      offsetX = 45;
-                      textAnchor = "start";
-                      rotation = -35; // Angle up-right
+                    } else if (isLastPoint && p2IsNearRightEdge) {
+                      // Governmental Fees (rightmost) - move inside chart boundaries
+                      offsetX = -65; // Move left to keep inside chart
+                      textAnchor = "end";
+                      rotation = 30; // Angle up-left
                       // Growth percentage directly under Period 2 value
                       growthOffsetX = 0;  // Align with Period 2 label
                       growthOffsetY = 18; // Just below Period 2 value
@@ -2954,19 +2952,19 @@ export default function Dashboard() {
                     }
 
                     // Period 2 (most recent) goes ABOVE
-                    let baseOffsetY = -55;
+                    let p2BaseOffsetY = -55;
 
                     // Special Y offset for edge points
-                    if (isFirstPoint && isNearYAxis) {
-                      baseOffsetY = -45; // Adjust for top-left positioning
-                    } else if (isLastPoint && isNearRightEdge) {
-                      baseOffsetY = -45; // Adjust for top-right positioning
-                    } else if (isNearTop) {
-                      baseOffsetY = -38;
+                    if (isFirstPoint && p2IsNearYAxis) {
+                      p2BaseOffsetY = -45; // Adjust for top-left positioning
+                    } else if (isLastPoint && p2IsNearRightEdge) {
+                      p2BaseOffsetY = -50; // Increased upward offset to ensure visibility
+                    } else if (p2IsNearTop) {
+                      p2BaseOffsetY = -38;
                       offsetX = offsetX * 1.5; // Increase horizontal spread
                     }
 
-                    const offsetY = baseOffsetY - (index % 2 === 0 ? 0 : 18);
+                    const offsetY = p2BaseOffsetY - (index % 2 === 0 ? 0 : 18);
                     const labelX = x + offsetX;
                     const labelY = y + offsetY;
 
