@@ -2691,7 +2691,7 @@ export default function Dashboard() {
                           y1={y}
                           x2={labelX}
                           y2={labelY - 8}
-                          stroke="#9ca3af"
+                          stroke={PROCEED_COLORS.secondary}
                           strokeWidth={1}
                           strokeDasharray="2,2"
                           opacity={0.5}
@@ -2701,14 +2701,14 @@ export default function Dashboard() {
                           cx={labelX}
                           cy={labelY - 8}
                           r={2}
-                          fill="#9ca3af"
+                          fill={PROCEED_COLORS.secondary}
                           opacity={0.5}
                         />
                         {/* Value label with Period 1 color (gray) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill="#6b7280" // Gray color for Period 1
+                          fill={PROCEED_COLORS.secondary} // Gray color for Period 1
                           textAnchor={textAnchor}
                           fontSize={11}
                           fontWeight={600}
@@ -2813,7 +2813,7 @@ export default function Dashboard() {
                           y1={y}
                           x2={labelX}
                           y2={labelY + 8}
-                          stroke="#f87171"
+                          stroke={PROCEED_COLORS.primary}
                           strokeWidth={1}
                           strokeDasharray="2,2"
                           opacity={0.5}
@@ -2823,14 +2823,14 @@ export default function Dashboard() {
                           cx={labelX}
                           cy={labelY + 8}
                           r={2}
-                          fill="#f87171"
+                          fill={PROCEED_COLORS.primary}
                           opacity={0.5}
                         />
                         {/* Value label with Period 2 color (reddish) */}
                         <text
                           x={labelX}
                           y={labelY}
-                          fill="#dc2626" // Reddish color for Period 2
+                          fill={PROCEED_COLORS.primary} // Reddish color for Period 2
                           textAnchor={textAnchor}
                           fontSize={12}
                           fontWeight={700}
