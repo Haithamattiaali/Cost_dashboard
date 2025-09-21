@@ -2821,17 +2821,17 @@ export default function Dashboard() {
                       offsetX = -45;
                       textAnchor = "end";
                       rotation = 35; // Angle up-left
-                      // Growth percentage below-right
-                      growthOffsetX = 40;
-                      growthOffsetY = 25;
+                      // Growth percentage directly under Period 2 value
+                      growthOffsetX = 0;  // Align with Period 2 label
+                      growthOffsetY = 18; // Just below Period 2 value
                     } else if (isLastPoint && isNearRightEdge) {
                       // Governmental Fees (rightmost) - move up-right corner
                       offsetX = 45;
                       textAnchor = "start";
                       rotation = -35; // Angle up-right
-                      // Growth percentage below-left
-                      growthOffsetX = -40;
-                      growthOffsetY = 25;
+                      // Growth percentage directly under Period 2 value
+                      growthOffsetX = 0;  // Align with Period 2 label
+                      growthOffsetY = 18; // Just below Period 2 value
                     } else if (index === 1 || index === 2) {
                       // Points near axis labels
                       offsetX = index === 1 ? 45 : -45;
@@ -2901,32 +2901,81 @@ export default function Dashboard() {
                         {/* Growth percentage with smart positioning */}
                         {dataPoint?.growth !== undefined && (
                           <g>
-                            {/* Special positioning for edge cases */}
-                            {(isFirstPoint || isLastPoint) && (
-                              <line
-                                x1={x}
-                                y1={y}
-                                x2={x + growthOffsetX}
-                                y2={y + growthOffsetY}
-                                stroke={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
-                                strokeWidth={0.8}
-                                strokeDasharray="1,1"
-                                opacity={0.3}
-                              />
+                            {/* For Labor Salary, place growth % directly under Period 2 value */}
+                            {isFirstPoint && (
+                              <>
+                                {/* Small connector line from Period 2 label to growth % */}
+                                <line
+                                  x1={labelX}
+                                  y1={labelY + 8}
+                                  x2={labelX}
+                                  y2={labelY + 16}
+                                  stroke={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                  strokeWidth={0.5}
+                                  opacity={0.3}
+                                />
+                                <text
+                                  x={labelX}
+                                  y={labelY + growthOffsetY}
+                                  fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                  textAnchor={textAnchor}
+                                  fontSize={10}
+                                  fontWeight={700}
+                                  stroke="white"
+                                  strokeWidth={2.5}
+                                  paintOrder="stroke"
+                                  transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY + growthOffsetY})` : undefined}
+                                >
+                                  {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                </text>
+                              </>
                             )}
-                            <text
-                              x={isFirstPoint || isLastPoint ? x + growthOffsetX : labelX + growthOffsetX}
-                              y={isFirstPoint || isLastPoint ? y + growthOffsetY : labelY + growthOffsetY}
-                              fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
-                              textAnchor={isFirstPoint ? "start" : isLastPoint ? "end" : textAnchor}
-                              fontSize={10}
-                              fontWeight={700}
-                              stroke="white"
-                              strokeWidth={2.5}
-                              paintOrder="stroke"
-                            >
-                              {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
-                            </text>
+
+                            {/* For Governmental Fees (last point), keep similar approach */}
+                            {isLastPoint && (
+                              <>
+                                <line
+                                  x1={labelX}
+                                  y1={labelY + 8}
+                                  x2={labelX}
+                                  y2={labelY + 16}
+                                  stroke={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                  strokeWidth={0.5}
+                                  opacity={0.3}
+                                />
+                                <text
+                                  x={labelX}
+                                  y={labelY + growthOffsetY}
+                                  fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                  textAnchor={textAnchor}
+                                  fontSize={10}
+                                  fontWeight={700}
+                                  stroke="white"
+                                  strokeWidth={2.5}
+                                  paintOrder="stroke"
+                                  transform={rotation !== 0 ? `rotate(${rotation} ${labelX} ${labelY + growthOffsetY})` : undefined}
+                                >
+                                  {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                                </text>
+                              </>
+                            )}
+
+                            {/* Standard positioning for middle points */}
+                            {!isFirstPoint && !isLastPoint && (
+                              <text
+                                x={labelX + growthOffsetX}
+                                y={labelY + growthOffsetY}
+                                fill={dataPoint.growth >= 0 ? '#dc2626' : '#16a34a'}
+                                textAnchor={textAnchor}
+                                fontSize={10}
+                                fontWeight={700}
+                                stroke="white"
+                                strokeWidth={2.5}
+                                paintOrder="stroke"
+                              >
+                                {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                              </text>
+                            )}
                           </g>
                         )}
                       </g>
