@@ -10,10 +10,16 @@
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "tsc -p backend/tsconfig.json",
     "build:frontend": "vite build",
+    "build:production": "NODE_ENV=production npm run build",
     "start": "node dist/backend/server.js",
+    "start:production": "NODE_ENV=production node dist/backend/server.js",
+    "deploy": "npm run build:production && git push origin main",
+    "deploy:backend": "git push origin main",
+    "deploy:frontend": "npm run build:frontend && git push origin main",
     "test": "vitest",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

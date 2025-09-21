@@ -1,0 +1,51 @@
+[build]
+  command = "npm run build:frontend"
+  publish = "dist/frontend"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+
+[[redirects]]
+  from = "/api/*"
+  to = ":API_URL/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[context.production.environment]
+  VITE_API_URL = "https://proceed-cost-dashboard-api.onrender.com"
+  VITE_ENV = "production"
+
+[context.deploy-preview.environment]
+  VITE_API_URL = "https://proceed-cost-dashboard-api.onrender.com"
+  VITE_ENV = "preview"
+
+[context.branch-deploy.environment]
+  VITE_API_URL = "https://proceed-cost-dashboard-api.onrender.com"
+  VITE_ENV = "development"

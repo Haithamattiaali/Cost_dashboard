@@ -1,0 +1,30 @@
+{
+  "server": {
+    "port": 3001,
+    "host": "0.0.0.0"
+  },
+  "database": {
+    "path": "/var/data/costs.db"
+  },
+  "security": {
+    "corsOrigins": [
+      "https://proceed-cost-dashboard.netlify.app",
+      "https://*.netlify.app",
+      "http://localhost:5173"
+    ],
+    "rateLimitWindowMs": 900000,
+    "rateLimitMaxRequests": 100
+  },
+  "excel": {
+    "uploadDirectory": "/var/data/uploads",
+    "maxFileSize": 52428800,
+    "allowedMimeTypes": [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+}

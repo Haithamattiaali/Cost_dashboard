@@ -12,15 +12,29 @@ import { comparisonRoutes } from './routes/comparisons';
 import { filterRoutes } from './routes/filters';
 import { playgroundRoutes } from './routes/playground';
 
-// Load configuration directly
-const configPath = path.join(__dirname, '../config.json');
-const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+// Load configuration based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const configFileName = isProduction ? 'config.production.json' : 'config.json';
+const configPath = path.join(__dirname, '..', configFileName);
+
+// Use environment variables in production, fallback to config file
+let config: any = {};
+if (fs.existsSync(configPath)) {
+  config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+}
 
 function getConfig(path: string) {
+  // Check environment variables first (for production)
+  const envKey = path.replace(/\./g, '_').toUpperCase();
+  if (process.env[envKey]) {
+    return process.env[envKey];
+  }
+
+  // Fallback to config file
   const keys = path.split('.');
   let value = config;
   for (const key of keys) {
-    value = value[key];
+    value = value?.[key];
   }
   return value;
 }
@@ -32,11 +46,12 @@ async function initializeServer() {
 
   // Initialize database
   const db = new DatabaseManager();
-  await db.initialize(getConfig('database'));
-  console.log('✅ Database initialized');
+  const dbPath = process.env.DATABASE_PATH || getConfig('database.path') || getConfig('database');
+  await db.initialize(dbPath);
+  console.log('✅ Database initialized at', dbPath);
 
   // Create upload directory if it doesn't exist
-  const uploadDir = getConfig('excel.uploadDirectory');
+  const uploadDir = process.env.UPLOAD_DIR || getConfig('excel.uploadDirectory') || './uploads';
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
@@ -102,10 +117,14 @@ async function initializeServer() {
   });
 
   // Start server
-  const port = getConfig('api.port') || 3001;
-  app.listen(port, () => {
-    console.log(`🚀 PROCEED Cost Dashboard API running at http://localhost:${port}`);
-    console.log(`📊 Dashboard available at http://localhost:5173`);
+  const port = process.env.PORT || getConfig('server.port') || getConfig('api.port') || 3001;
+  const host = process.env.HOST || getConfig('server.host') || '0.0.0.0';
+
+  app.listen(Number(port), host, () => {
+    console.log(`🚀 PROCEED Cost Dashboard API running at http://${host}:${port}`);
+    if (!isProduction) {
+      console.log(`📊 Dashboard available at http://localhost:5173`);
+    }
   });
 }
 

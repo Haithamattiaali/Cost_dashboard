@@ -1,3 +1,5 @@
+import { buildApiUrl } from './config';
+
 const API_BASE_URL = '/api';
 
 export async function fetchDashboardMetrics(filters?: any) {
@@ -9,14 +11,14 @@ export async function fetchDashboardMetrics(filters?: any) {
       }
     });
   }
-  const response = await fetch(`${API_BASE_URL}/costs/dashboard?${params}`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/costs/dashboard?${params}`));
   if (!response.ok) throw new Error('Failed to fetch dashboard metrics');
   const data = await response.json();
   return data.metrics;
 }
 
 export async function fetchFilterOptions() {
-  const response = await fetch(`${API_BASE_URL}/filters/options`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/filters/options`));
   if (!response.ok) throw new Error('Failed to fetch filter options');
   const data = await response.json();
   return data.options;
@@ -31,13 +33,13 @@ export async function fetchCostData(filters?: any) {
       }
     });
   }
-  const response = await fetch(`${API_BASE_URL}/costs?${params}`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/costs?${params}`));
   if (!response.ok) throw new Error('Failed to fetch cost data');
   return response.json();
 }
 
 export async function fetchAggregatedData(dimension: string) {
-  const response = await fetch(`${API_BASE_URL}/costs/aggregate/${dimension}`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/costs/aggregate/${dimension}`));
   if (!response.ok) throw new Error('Failed to fetch aggregated data');
   return response.json();
 }
@@ -49,7 +51,7 @@ export async function compareQuarters(params: {
   previousQuarter: string;
 }) {
   const queryParams = new URLSearchParams(params as any);
-  const response = await fetch(`${API_BASE_URL}/comparisons/quarters?${queryParams}`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/comparisons/quarters?${queryParams}`));
   if (!response.ok) throw new Error('Failed to compare quarters');
   return response.json();
 }
@@ -59,7 +61,7 @@ export async function compareYearOverYear(currentYear: number, previousYear?: nu
     currentYear: currentYear.toString(),
     ...(previousYear && { previousYear: previousYear.toString() })
   });
-  const response = await fetch(`${API_BASE_URL}/comparisons/year-over-year?${params}`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/comparisons/year-over-year?${params}`));
   if (!response.ok) throw new Error('Failed to compare years');
   return response.json();
 }
@@ -71,7 +73,7 @@ export async function uploadExcelFile(file: File, clearExisting: boolean = false
     formData.append('clearExisting', 'true');
   }
 
-  const response = await fetch(`${API_BASE_URL}/upload/excel`, {
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/upload/excel`), {
     method: 'POST',
     body: formData,
   });
@@ -85,7 +87,7 @@ export async function uploadExcelFile(file: File, clearExisting: boolean = false
 }
 
 export async function getUploadStatus() {
-  const response = await fetch(`${API_BASE_URL}/upload/status`);
+  const response = await fetch(buildApiUrl(`${API_BASE_URL}/upload/status`));
   if (!response.ok) throw new Error('Failed to get upload status');
   return response.json();
 }
