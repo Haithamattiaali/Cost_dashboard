@@ -41,6 +41,7 @@ import {
 } from "../utils/periods";
 import { computeDelta, fmtShort, fmtPct, toneForCost, deltaBadgeText, fmtCurrency as fmtCurrencyDelta } from "../utils/delta";
 import { usePeriodStore } from "../state/periodScope";
+import { buildConversionRows } from "../lib/buildConversionRows";
 
 // PROCEED Brand Colors
 const PROCEED_COLORS = {
@@ -282,138 +283,36 @@ function withDeltaOnLast(points: any[]) {
 // Enterprise Data Grid Component
 const EnterpriseDataGrid: React.FC<{
   data: any[],
-  comparisonData?: any[],
   showGrowth?: boolean
-}> = ({ data, comparisonData, showGrowth = false }) => {
+}> = ({ data, showGrowth = false }) => {
   // Log the incoming data
   console.log('[EnterpriseDataGrid] Received data:', {
     dataLength: data?.length,
     firstItem: data?.[0],
     dataType: typeof data,
     isArray: Array.isArray(data),
-    hasComparisonData: !!comparisonData,
     showGrowth
   });
 
-  // Calculate data with growth if needed
+  // Process data - if in comparison mode, data already has delta values from buildConversionRows
   const processedData = useMemo(() => {
-    if (!showGrowth || !comparisonData || !data) {
-      console.log('[Growth Calculation] Not processing - showGrowth:', showGrowth, 'hasComparison:', !!comparisonData, 'hasData:', !!data);
-      return data || [];
+    if (!data) {
+      return [];
     }
 
-    console.log('[Growth Calculation] Processing data:', {
-      dataLength: data?.length,
-      comparisonDataLength: comparisonData?.length,
-      showGrowth,
-      sampleCurrentData: data?.[0],
-      sampleComparisonData: comparisonData?.[0],
-      currentKeys: data?.[0] ? Object.keys(data[0]) : [],
-      comparisonKeys: comparisonData?.[0] ? Object.keys(comparisonData[0]) : []
-    });
-
-    // Debug: Show first 3 rows from each dataset to understand structure
-    console.log('[Growth Debug] First 3 current rows:', data?.slice(0, 3).map(r => ({
-      glAccountNo: r.glAccountNo,
-      glAccountName: r.glAccountName,
-      cost: r.totalIncurredCost
-    })));
-
-    console.log('[Growth Debug] First 3 comparison rows:', comparisonData?.slice(0, 3).map(r => ({
-      glAccountNo: r.glAccountNo,
-      glAccountName: r.glAccountName,
-      cost: r.totalIncurredCost
-    })));
-
-    // Map ALL rows from period 2 data with growth calculations
-    const processedRows = data.map((row, index) => {
-      // Find matching row in comparison data - try multiple matching strategies
-      const comparisonRow = comparisonData.find(cRow => {
-        // Debug first few rows
-        if (index < 3) {
-          console.log(`[Matching Debug ${index}] Comparing:`, {
-            current: { no: row?.glAccountNo, name: row?.glAccountName },
-            against: { no: cRow?.glAccountNo, name: cRow?.glAccountName }
-          });
-        }
-
-        // Primary match: glAccountNo if both have it
-        if (row?.glAccountNo && cRow?.glAccountNo) {
-          const matched = String(row.glAccountNo).trim() === String(cRow.glAccountNo).trim();
-          if (matched && index < 3) {
-            console.log(`[Match Found ${index}] By glAccountNo:`, row.glAccountNo);
-          }
-          return matched;
-        }
-
-        // Secondary match: glAccountName (case-insensitive, trimmed)
-        if (row?.glAccountName && cRow?.glAccountName) {
-          const currentName = String(row.glAccountName).trim().toLowerCase();
-          const compName = String(cRow.glAccountName).trim().toLowerCase();
-          const matched = currentName === compName;
-          if (matched && index < 3) {
-            console.log(`[Match Found ${index}] By glAccountName:`, row.glAccountName);
-          }
-          return matched;
-        }
-
-        return false;
+    // In comparison mode, data already has p1, p2, deltaAbs, deltaPct from buildConversionRows
+    if (showGrowth) {
+      console.log('[Growth Calculation] Data already processed by buildConversionRows:', {
+        dataLength: data?.length,
+        sampleRow: data?.[0],
+        hasDelta: data?.[0]?.deltaAbs !== undefined
       });
+      return data;
+    }
 
-      let growth = 0; // Default to 0 if no comparison
-
-      if (comparisonRow) {
-        const currentCost = row.totalIncurredCost || 0;
-        const previousCost = comparisonRow.totalIncurredCost || 0;
-
-        if (previousCost === 0 && currentCost === 0) {
-          growth = 0;
-        } else if (previousCost === 0 && currentCost > 0) {
-          growth = 100; // New cost (100% growth)
-        } else if (previousCost > 0 && currentCost === 0) {
-          growth = -100; // Cost eliminated
-        } else if (previousCost > 0) {
-          growth = ((currentCost - previousCost) / previousCost) * 100;
-        }
-
-        console.log(`[Growth ${index}] Matched:`, {
-          account: row.glAccountName,
-          glNo: row.glAccountNo,
-          current: currentCost,
-          previous: previousCost,
-          growth: growth.toFixed(2) + '%'
-        });
-      } else {
-        // No matching row in comparison period - this is a new expense
-        growth = row.totalIncurredCost > 0 ? 100 : 0;
-        console.log(`[Growth ${index}] New expense (no match):`, {
-          account: row.glAccountName,
-          glNo: row.glAccountNo,
-          current: row.totalIncurredCost,
-          growth: growth + '%'
-        });
-      }
-
-      return {
-        ...row,
-        growth,
-        P1Value: comparisonRow ? comparisonRow.totalIncurredCost : 0,
-        P2Value: row.totalIncurredCost,
-        deltaValue: row.totalIncurredCost - (comparisonRow ? comparisonRow.totalIncurredCost : 0)
-      };
-    });
-
-    console.log('[Growth Calculation] Completed:', {
-      totalRows: processedRows.length,
-      rowsWithGrowth: processedRows.filter(r => r.growth !== null && r.growth !== undefined).length,
-      sampleGrowthValues: processedRows.slice(0, 5).map(r => ({
-        name: r.glAccountName,
-        growth: r.growth
-      }))
-    });
-
-    return processedRows;
-  }, [data, comparisonData, showGrowth]);
+    // Normal mode - just return the data as-is
+    return data;
+  }, [data, showGrowth]);
 
   // Define columns with simplified configuration
   const columns: DataTableColumn[] = useMemo(() => [
@@ -516,50 +415,67 @@ const EnterpriseDataGrid: React.FC<{
     },
     ...(showGrowth ? [
       {
-        id: 'deltaValue',
+        id: 'deltaAbs',
         header: 'Δ Value (P2–P1)',
-        accessorKey: 'deltaValue',
-        dataType: 'text' as const,
+        accessorKey: 'deltaAbs',
+        dataType: 'numeric' as const,
         width: 150,
-        formatter: (value: any, row: any) => {
-          if (!row || row.P1Value === undefined || row.P2Value === undefined) {
-            return <span className="text-gray-500">-</span>;
+        formatter: (value: any) => {
+          // DO NOT treat 0 as empty
+          if (!Number.isFinite(value)) {
+            return <span className="text-gray-400">—</span>;
           }
-          const d = computeDelta(row.P1Value, row.P2Value);
-          const text = `${fmtShort(d.abs)}`;
-          const color =
-            toneForCost(d) === 'success' ? 'text-emerald-600'
-            : toneForCost(d) === 'danger' ? 'text-rose-600'
-            : 'text-gray-500';
-          return <span className={`font-semibold ${color}`}>{text}</span>;
+
+          const sign = value < 0 ? '-' : '+';
+          const abs = Math.abs(value);
+          const short =
+            abs < 1_000 ? abs.toFixed(0) :
+            abs < 1_000_000 ? (abs/1e3).toFixed(1).replace(/\.0$/,'') + 'K' :
+            abs < 1_000_000_000 ? (abs/1e6).toFixed(1).replace(/\.0$/,'') + 'M' :
+            (abs/1e9).toFixed(1).replace(/\.0$/,'') + 'B';
+
+          const color = value < 0 ? 'text-emerald-600' : value > 0 ? 'text-rose-600' : 'text-gray-500';
+          return <span className={`font-semibold ${color}`}>{`${sign}${short}`}</span>;
         },
         enableSorting: true,
-        enableColumnFilter: false
+        enableColumnFilter: false,
+        sortingFn: 'basic',
+        meta: {
+          exportHeader: 'Delta Value (numeric)',
+          exportValue: (row: any) => row.deltaAbs
+        }
       },
       {
-        id: 'growth',
+        id: 'deltaPct',
         header: 'Growth %',
-        accessorKey: 'growth',
-        dataType: 'text',
+        accessorKey: 'deltaPct',
+        dataType: 'numeric' as const,
         width: 100,
         formatter: (value: any) => {
-          // The value will be pre-calculated
-          if (value === undefined || value === null) {
-            return <span className="text-gray-400">N/A</span>;
+          // Handle null (which means P1 was 0)
+          if (value === null) {
+            return <span className="text-purple-600 font-semibold">NEW</span>;
           }
 
-          const growthValue = typeof value === 'number' ? value : 0;
-          const isPositive = growthValue >= 0;
+          if (!Number.isFinite(value)) {
+            return <span className="text-gray-400">—</span>;
+          }
+
+          const isPositive = value >= 0;
+          const arrow = isPositive ? '↑' : '↓';
+          const color = isPositive ? 'text-rose-600' : 'text-emerald-600';
 
           return (
-            <span className={`font-semibold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
-              {isPositive ? '↑' : '↓'} {Math.abs(growthValue).toFixed(1)}%
+            <span className={`font-semibold ${color}`}>
+              {arrow} {Math.abs(value).toFixed(1)}%
             </span>
           );
-        }
+        },
+        enableSorting: true,
+        sortingFn: 'basic'
       }
     ] : [])
-  ], [showGrowth, comparisonData]);
+  ], [showGrowth]);
 
   // Render the enhanced DataTable with all Excel-like features
   return (
@@ -3905,43 +3821,47 @@ export default function Dashboard() {
           </div>
         </div>
         {(() => {
-          const gridData = mode === 'comparison' && secondPeriodMetrics
-            ? secondPeriodMetrics.topExpenses
-            : metrics?.topExpenses;
+          let displayData: any[];
 
-          const comparisonGridData = mode === 'comparison' && firstPeriodMetrics
-            ? firstPeriodMetrics.topExpenses
-            : undefined;
+          if (mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics && firstPeriod && secondPeriod) {
+            // Use buildConversionRows for comparison mode
+            const allRows = [
+              ...(firstPeriodMetrics.topExpenses || []),
+              ...(secondPeriodMetrics.topExpenses || [])
+            ];
 
-          // Debug: log which period is which
-          if (mode === 'comparison') {
-            console.log('[Period Assignment]:', {
-              firstPeriod: firstPeriod,
-              secondPeriod: secondPeriod,
-              gridDataPeriod: 'Period 2 (Current/Recent)',
-              comparisonDataPeriod: 'Period 1 (Baseline/Older)',
-              gridDataCount: gridData?.length,
-              comparisonDataCount: comparisonGridData?.length
+            displayData = buildConversionRows(
+              allRows,
+              { year: firstPeriod.year, quarter: firstPeriod.quarter },
+              { year: secondPeriod.year, quarter: secondPeriod.quarter }
+            );
+
+            console.log('[Comparison Mode] Using buildConversionRows:', {
+              firstPeriod,
+              secondPeriod,
+              allRowsCount: allRows.length,
+              mergedRowsCount: displayData.length,
+              sampleRow: displayData[0]
             });
+          } else {
+            // Normal mode - just show the data as-is
+            displayData = metrics?.topExpenses || [];
           }
 
           console.log('[Dashboard] Data Grid section:', {
             hasMetrics: !!metrics,
-            hasTopExpenses: !!gridData,
-            topExpensesLength: gridData?.length || 0,
-            firstItem: gridData?.[0],
-            willRenderGrid: gridData && gridData.length > 0,
-            comparisonMode: mode === 'comparison',
-            hasComparisonData: !!comparisonGridData
+            displayDataLength: displayData?.length || 0,
+            firstItem: displayData?.[0],
+            willRenderGrid: displayData && displayData.length > 0,
+            comparisonMode: mode === 'comparison'
           });
 
-          if (gridData && gridData.length > 0) {
+          if (displayData && displayData.length > 0) {
             return (
               <>
                 <EnterpriseDataGrid
-                  data={gridData}
-                  comparisonData={comparisonGridData}
-                  showGrowth={mode === 'comparison' && !!comparisonGridData}
+                  data={displayData}
+                  showGrowth={mode === 'comparison'}
                 />
               </>
             );
