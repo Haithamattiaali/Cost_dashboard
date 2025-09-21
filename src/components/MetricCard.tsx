@@ -9,6 +9,7 @@ interface MetricCardProps {
   trend?: {
     value: number;
     isPositive: boolean;
+    deltaValue?: string; // Formatted delta value to show alongside percentage
   } | null;
   subtitle?: string;
 }
@@ -41,6 +42,7 @@ export default function MetricCard({ title, value, icon, color = 'primary', tren
               )}
               <span className={`text-sm font-semibold ${trend.isPositive ? 'text-green-500' : 'text-red-500'}`}>
                 {trend.value > 0 ? '↑' : trend.value < 0 ? '↓' : ''} {trend.value > 0 ? '+' : ''}{trend.value.toFixed(1)}%
+                {trend.deltaValue && ` (${trend.deltaValue})`}
               </span>
             </div>
           )}

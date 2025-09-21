@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Filter, X, Loader2, AlertCircle } from 'lucide-react';
+import { Filter, X, Loader2, AlertCircle, Calendar, Hash } from 'lucide-react';
 import { fetchFilterOptions } from '../api/costs';
 
 interface FilterPanelProps {
@@ -9,9 +9,23 @@ interface FilterPanelProps {
 
 export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    year: '',
-    quarter: '',
+  const [isInitialized, setIsInitialized] = useState(false);
+  const lastFiltersRef = useRef<string>('');
+
+  // Initialize filters with a callback to preserve existing values
+  const [filters, setFilters] = useState(() => {
+    const stored = localStorage.getItem('dashboard-filters');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    return {
+      year: '',
+      quarter: '',
+    };
   });
 
   const { data: filterOptions, isLoading, isError, error } = useQuery({
@@ -27,14 +41,40 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
     return options.filter(option => option !== '' && option !== null && option !== undefined);
   };
 
-
+  // Initialize with latest year when data loads
   useEffect(() => {
+    if (filterOptions?.years && filterOptions.years.length > 0 && !isInitialized) {
+      const latestYear = Math.max(...filterOptions.years);
+      setFilters(prev => ({
+        ...prev,
+        year: String(latestYear),
+        // Keep quarter if already set, otherwise empty
+        quarter: prev.quarter || ''
+      }));
+      setIsInitialized(true);
+    }
+  }, [filterOptions, isInitialized]);
+
+  // Stable callback for filters change
+  const notifyFiltersChange = useCallback(() => {
     const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
       if (value) acc[key] = value;
       return acc;
     }, {} as any);
-    onFiltersChange(activeFilters);
+
+    // Only notify if filters actually changed
+    const filtersStr = JSON.stringify(activeFilters);
+    if (filtersStr !== lastFiltersRef.current) {
+      lastFiltersRef.current = filtersStr;
+      // Save to localStorage
+      localStorage.setItem('dashboard-filters', JSON.stringify(filters));
+      onFiltersChange(activeFilters);
+    }
   }, [filters, onFiltersChange]);
+
+  useEffect(() => {
+    notifyFiltersChange();
+  }, [notifyFiltersChange]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -45,25 +85,52 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
       year: '',
       quarter: '',
     });
+    localStorage.removeItem('dashboard-filters');
   };
 
   const activeFilterCount = Object.values(filters).filter(v => v).length;
 
+  // Build display text for active filters
+  const getFilterDisplay = () => {
+    const parts = [];
+    if (filters.year) {
+      parts.push(`Year: ${filters.year}`);
+    }
+    if (filters.quarter) {
+      // Handle both formats: "q1" and "Q1"
+      const quarterText = typeof filters.quarter === 'string'
+        ? filters.quarter.toUpperCase()
+        : filters.quarter;
+      parts.push(`Quarter: ${quarterText}`);
+    }
+    return parts.join(' • ');
+  };
+
   return (
     <div className="filter-panel">
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center text-gray-700 hover:text-gray-900"
-        >
-          <Filter className="h-5 w-5 mr-2" />
-          <span className="font-medium">Filters</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center text-gray-700 hover:text-gray-900"
+          >
+            <Filter className="h-5 w-5 mr-2" />
+            <span className="font-medium">Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="ml-2 px-2 py-1 text-xs bg-[#9e1f63] text-white rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* Display selected filters */}
           {activeFilterCount > 0 && (
-            <span className="ml-2 px-2 py-1 text-xs bg-[#9e1f63] text-white rounded-full">
-              {activeFilterCount}
-            </span>
+            <div className="flex items-center text-sm text-gray-600">
+              <span className="font-medium">{getFilterDisplay()}</span>
+            </div>
           )}
-        </button>
+        </div>
+
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}

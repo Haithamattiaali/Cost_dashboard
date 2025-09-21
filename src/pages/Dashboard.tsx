@@ -39,6 +39,8 @@ import {
   Period,
   makeQuarter
 } from "../utils/periods";
+import { computeDelta, fmtShort, fmtPct, toneForCost, deltaBadgeText, fmtCurrency as fmtCurrencyDelta } from "../utils/delta";
+import { usePeriodStore } from "../state/periodScope";
 
 // PROCEED Brand Colors
 const PROCEED_COLORS = {
@@ -394,7 +396,10 @@ const EnterpriseDataGrid: React.FC<{
 
       return {
         ...row,
-        growth
+        growth,
+        P1Value: comparisonRow ? comparisonRow.totalIncurredCost : 0,
+        P2Value: row.totalIncurredCost,
+        deltaValue: row.totalIncurredCost - (comparisonRow ? comparisonRow.totalIncurredCost : 0)
       };
     });
 
@@ -509,28 +514,51 @@ const EnterpriseDataGrid: React.FC<{
       formatter: (value) => formatCurrency(value),
       enableAggregation: true
     },
-    ...(showGrowth ? [{
-      id: 'growth',
-      header: 'Growth %',
-      accessorKey: 'growth',
-      dataType: 'text',
-      width: 100,
-      formatter: (value) => {
-        // The value will be pre-calculated
-        if (value === undefined || value === null) {
-          return <span className="text-gray-400">N/A</span>;
+    ...(showGrowth ? [
+      {
+        id: 'deltaValue',
+        header: 'Δ Value (P2–P1)',
+        accessorKey: 'deltaValue',
+        dataType: 'text' as const,
+        width: 150,
+        formatter: (value: any, row: any) => {
+          if (!row || row.P1Value === undefined || row.P2Value === undefined) {
+            return <span className="text-gray-500">-</span>;
+          }
+          const d = computeDelta(row.P1Value, row.P2Value);
+          const text = `${fmtShort(d.abs)}`;
+          const color =
+            toneForCost(d) === 'success' ? 'text-emerald-600'
+            : toneForCost(d) === 'danger' ? 'text-rose-600'
+            : 'text-gray-500';
+          return <span className={`font-semibold ${color}`}>{text}</span>;
+        },
+        enableSorting: true,
+        enableColumnFilter: false
+      },
+      {
+        id: 'growth',
+        header: 'Growth %',
+        accessorKey: 'growth',
+        dataType: 'text',
+        width: 100,
+        formatter: (value: any) => {
+          // The value will be pre-calculated
+          if (value === undefined || value === null) {
+            return <span className="text-gray-400">N/A</span>;
+          }
+
+          const growthValue = typeof value === 'number' ? value : 0;
+          const isPositive = growthValue >= 0;
+
+          return (
+            <span className={`font-semibold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
+              {isPositive ? '↑' : '↓'} {Math.abs(growthValue).toFixed(1)}%
+            </span>
+          );
         }
-
-        const growthValue = typeof value === 'number' ? value : 0;
-        const isPositive = growthValue >= 0;
-
-        return (
-          <span className={`font-semibold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
-            {isPositive ? '↑' : '↓'} {Math.abs(growthValue).toFixed(1)}%
-          </span>
-        );
       }
-    }] : [])
+    ] : [])
   ], [showGrowth, comparisonData]);
 
   // Render the enhanced DataTable with all Excel-like features
@@ -551,8 +579,10 @@ const EnterpriseDataGrid: React.FC<{
 export default function Dashboard() {
   const [filters, setFilters] = useState({});
 
-  // Comparison Mode State
-  const [comparisonMode, setComparisonMode] = useState(false);
+  // Get mode from store
+  const { mode, setMode } = usePeriodStore();
+
+  // Local state for comparison periods
   const [firstPeriod, setFirstPeriod] = useState<{ year: number; quarter: string } | null>(null);
   const [secondPeriod, setSecondPeriod] = useState<{ year: number; quarter: string } | null>(null);
 
@@ -633,19 +663,24 @@ export default function Dashboard() {
     }
 
     // Disable comparison mode if less than 2 periods available
-    if (availablePeriods.length < 2 && comparisonMode) {
-      setComparisonMode(false);
+    if (availablePeriods.length < 2 && mode === 'comparison') {
+      setMode('normal');
     }
-  }, [availablePeriods]);
+  }, [availablePeriods, firstPeriod, secondPeriod, mode, setMode]);
 
-  // Main metrics query
+  // Main metrics query - just use the filters directly
+  // The FilterPanel already handles quarter selection
+  const metricsFilters = filters;
+
   const {
     data: metrics,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["dashboard-metrics", filters],
-    queryFn: () => fetchDashboardMetrics(filters),
+    queryKey: ["dashboard-metrics", metricsFilters],
+    queryFn: () => fetchDashboardMetrics(metricsFilters),
+    staleTime: 30 * 1000, // 30 seconds
+    cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // First period metrics for comparison
@@ -658,7 +693,7 @@ export default function Dashboard() {
       year: firstPeriod?.year,
       quarter: firstPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
     }),
-    enabled: comparisonMode && firstPeriod !== null,
+    enabled: mode === 'comparison' && firstPeriod !== null,
   });
 
   // Second period metrics for comparison
@@ -671,7 +706,7 @@ export default function Dashboard() {
       year: secondPeriod?.year,
       quarter: secondPeriod?.quarter?.toLowerCase() // Convert to lowercase to match database
     }),
-    enabled: comparisonMode && secondPeriod !== null,
+    enabled: mode === 'comparison' && secondPeriod !== null,
   });
 
   // Calculate growth percentage
@@ -792,7 +827,7 @@ export default function Dashboard() {
   }, [isLoading, error, metrics]);
 
   // Get all GL Account data and prepare top 15 + Others
-  const allGLAccounts = comparisonMode && secondPeriodMetrics
+  const allGLAccounts = mode === 'comparison' && secondPeriodMetrics
     ? secondPeriodMetrics.costByGLAccount || []
     : metrics?.costByGLAccount || [];
   const totalAllGLCost = allGLAccounts.reduce(
@@ -894,8 +929,9 @@ export default function Dashboard() {
             <button
               onClick={() => {
                 if (availablePeriods.length < 2) return;
-                setComparisonMode(!comparisonMode);
-                if (!comparisonMode && availablePeriods.length >= 2) {
+                const newMode = mode === 'normal' ? 'comparison' : 'normal';
+                setMode(newMode);
+                if (newMode === 'comparison' && availablePeriods.length >= 2) {
                   // Initialize with default periods when enabling
                   const defaults = pickDefaultComparison(availablePeriods);
                   if (defaults.p1 && defaults.p2) {
@@ -908,26 +944,26 @@ export default function Dashboard() {
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 availablePeriods.length < 2
                   ? 'bg-gray-100 cursor-not-allowed'
-                  : comparisonMode
+                  : mode === 'comparison'
                     ? 'bg-[#9e1f63]'
                     : 'bg-gray-200 hover:bg-gray-300'
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  comparisonMode ? 'translate-x-6' : 'translate-x-1'
+                  mode === 'comparison' ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
             <span className="text-sm text-gray-500">
               {availablePeriods.length < 2
                 ? `Disabled (${availablePeriods.length} period${availablePeriods.length !== 1 ? 's' : ''} available)`
-                : comparisonMode ? 'Enabled' : 'Disabled'}
+                : mode === 'comparison' ? 'Enabled' : 'Disabled'}
             </span>
           </div>
 
           {/* Period Selectors */}
-          {comparisonMode && (
+          {mode === 'comparison' && (
             <div className="flex items-center space-x-6">
               {availablePeriods.length < 2 ? (
                 <div className="text-sm text-gray-500 italic">
@@ -990,6 +1026,7 @@ export default function Dashboard() {
                   }`}>
                     {calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) >= 0 ? '+' : ''}
                     {calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost).toFixed(1)}%
+                    {` (${fmtShort(secondPeriodMetrics.totalCost - firstPeriodMetrics.totalCost)})`}
                   </span>
                 </div>
               )}
@@ -1003,27 +1040,28 @@ export default function Dashboard() {
         <MetricCard
           title="Total Cost"
           value={formatCurrency(
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.totalCost || 0
               : totalCost || 0
           )}
           icon={<BarChart3 className="h-5 w-5" />}
           color="primary"
-          trend={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? {
+          trend={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? {
             value: calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost),
-            isPositive: calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) < 0
+            isPositive: calculateGrowth(firstPeriodMetrics.totalCost, secondPeriodMetrics.totalCost) < 0,
+            deltaValue: fmtShort(secondPeriodMetrics.totalCost - firstPeriodMetrics.totalCost)
           } : null}
         />
         <MetricCard
           title="OPEX"
           value={formatCurrency(
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.totalOpex || 0
               : totalOpex || 0
           )}
           icon={<TrendingUp className="h-5 w-5" />}
           color="blue"
-          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          subtitle={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <span className={`font-semibold ${
               calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0
                 ? 'text-red-600'
@@ -1031,20 +1069,20 @@ export default function Dashboard() {
             }`}>
               {calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex) >= 0 ? '↑' : '↓'}
               {Math.abs(calculateGrowth(firstPeriodMetrics.totalOpex, secondPeriodMetrics.totalOpex)).toFixed(1)}%
-              {' vs Period 1'}
+              {` (${fmtShort(secondPeriodMetrics.totalOpex - firstPeriodMetrics.totalOpex)}) vs Period 1`}
             </span>
           ) : `${formatPercentage((totalOpex || 0) / (totalCost || 1))} of total`}
         />
         <MetricCard
           title="CAPEX"
           value={formatCurrency(
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.totalCapex || 0
               : totalCapex || 0
           )}
           icon={<TrendingDown className="h-5 w-5" />}
           color="accent"
-          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          subtitle={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <span className={`font-semibold ${
               calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0
                 ? 'text-red-600'
@@ -1052,20 +1090,20 @@ export default function Dashboard() {
             }`}>
               {calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex) >= 0 ? '↑' : '↓'}
               {Math.abs(calculateGrowth(firstPeriodMetrics.totalCapex, secondPeriodMetrics.totalCapex)).toFixed(1)}%
-              {' vs Period 1'}
+              {` (${fmtShort(secondPeriodMetrics.totalCapex - firstPeriodMetrics.totalCapex)}) vs Period 1`}
             </span>
           ) : `${formatPercentage((totalCapex || 0) / (totalCost || 1))} of total`}
         />
         <MetricCard
           title="DMASCO Operations"
           value={formatCurrency(
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.dmascoTotal || 0
               : dmascoTotal || 0
           )}
           icon={<Building2 className="h-5 w-5" />}
           color="secondary"
-          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          subtitle={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <span className={`font-semibold ${
               calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0
                 ? 'text-red-600'
@@ -1073,20 +1111,20 @@ export default function Dashboard() {
             }`}>
               {calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0 ? '↑' : '↓'}
               {Math.abs(calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)).toFixed(1)}%
-              {' vs Period 1'}
+              {` (${fmtShort(secondPeriodMetrics.dmascoTotal - firstPeriodMetrics.dmascoTotal)}) vs Period 1`}
             </span>
           ) : "Pharmacy, Dist, LM"}
         />
         <MetricCard
           title="PROCEED 3PL"
           value={formatCurrency(
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.proceed3PLTotal || 0
               : proceed3PLTotal || 0
           )}
           icon={<Truck className="h-5 w-5" />}
           color="primary"
-          subtitle={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          subtitle={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <span className={`font-semibold ${
               calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal) >= 0
                 ? 'text-red-600'
@@ -1094,7 +1132,7 @@ export default function Dashboard() {
             }`}>
               {calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal) >= 0 ? '↑' : '↓'}
               {Math.abs(calculateGrowth(firstPeriodMetrics.proceed3PLTotal, secondPeriodMetrics.proceed3PLTotal)).toFixed(1)}%
-              {' vs Period 1'}
+              {` (${fmtShort(secondPeriodMetrics.proceed3PLTotal - firstPeriodMetrics.proceed3PLTotal)}) vs Period 1`}
             </span>
           ) : "WH & Transportation"}
         />
@@ -1107,7 +1145,7 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Cost Trend by Quarter
-            {comparisonMode && firstPeriodMetrics && secondPeriodMetrics && (
+            {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics && (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparing {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
@@ -1115,7 +1153,7 @@ export default function Dashboard() {
           </h3>
           <ResponsiveContainer width="100%" height={450}>
             <BarChart
-              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+              data={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ?
                 // Comparison mode: Show each quarter with comparison data
                 [...(costByQuarter || [])].sort((a, b) => {
                   const orderA = {'q1':1,'q2':2,'q3':3,'q4':4}[a.value?.toLowerCase()]||0;
@@ -1172,7 +1210,7 @@ export default function Dashboard() {
                 contentStyle={CHART_STYLES.tooltip.contentStyle}
                 labelStyle={CHART_STYLES.tooltip.labelStyle}
               />
-              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+              {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
                 <>
                   <Legend
                     wrapperStyle={CHART_STYLES.legend.wrapperStyle}
@@ -1255,7 +1293,7 @@ export default function Dashboard() {
                         const overallGrowth = calculateGrowth(period1Total, period2Total);
 
                         // Apply the same growth to all Period 2 bars
-                        const chartData = comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+                        const chartData = mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ?
                           costByQuarter?.map(q => {
                             const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
                             const period2Cost = period2Data?.totalCost || 0;
@@ -1292,7 +1330,7 @@ export default function Dashboard() {
                               letterSpacing: '-0.02em'
                             }}
                           >
-                            {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''}${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}%`}
+                            {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''}${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}% (${fmtShort(period2Total - period1Total)})`}
                           </text>
                         );
                       }}
@@ -1328,13 +1366,13 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             OPEX vs CAPEX Breakdown
-            {comparisonMode && (
+            {mode === 'comparison' && (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             )}
           </h3>
-          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <div className="grid grid-cols-2 gap-4">
               {/* Period 1 Pie */}
               <div>
@@ -1514,13 +1552,13 @@ export default function Dashboard() {
                 data={[
                   {
                     name: "OPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalOpex || 0
                       : totalOpex || 0
                   },
                   {
                     name: "CAPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalCapex || 0
                       : totalCapex || 0
                   },
@@ -1592,13 +1630,13 @@ export default function Dashboard() {
                 {[
                   {
                     name: "OPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalOpex || 0
                       : totalOpex || 0
                   },
                   {
                     name: "CAPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalCapex || 0
                       : totalCapex || 0
                   },
@@ -1619,11 +1657,11 @@ export default function Dashboard() {
                 data={[
                   {
                     name: "OPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalOpex || 0
                       : totalOpex || 0,
                     label: `${formatCurrency(
-                      comparisonMode && secondPeriodMetrics
+                      mode === 'comparison' && secondPeriodMetrics
                         ? secondPeriodMetrics.totalOpex || 0
                         : totalOpex || 0,
                       true
@@ -1631,11 +1669,11 @@ export default function Dashboard() {
                   },
                   {
                     name: "CAPEX",
-                    value: comparisonMode && secondPeriodMetrics
+                    value: mode === 'comparison' && secondPeriodMetrics
                       ? secondPeriodMetrics.totalCapex || 0
                       : totalCapex || 0,
                     label: `${formatCurrency(
-                      comparisonMode && secondPeriodMetrics
+                      mode === 'comparison' && secondPeriodMetrics
                         ? secondPeriodMetrics.totalCapex || 0
                         : totalCapex || 0,
                       true
@@ -1661,10 +1699,10 @@ export default function Dashboard() {
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-                  const opexVal = comparisonMode && secondPeriodMetrics
+                  const opexVal = mode === 'comparison' && secondPeriodMetrics
                     ? secondPeriodMetrics.totalOpex || 0
                     : totalOpex || 0;
-                  const capexVal = comparisonMode && secondPeriodMetrics
+                  const capexVal = mode === 'comparison' && secondPeriodMetrics
                     ? secondPeriodMetrics.totalCapex || 0
                     : totalCapex || 0;
                   const total = opexVal + capexVal;
@@ -1732,19 +1770,19 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Warehouse vs Transportation Cost
-            {comparisonMode ? (
+            {mode === 'comparison' ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             ) : (
-              !comparisonMode && costByQuarter?.length > 0 && (
+              !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
                   ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
                 </span>
               )
             )}
           </h3>
-          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <div className="grid grid-cols-2 gap-4">
               {/* Period 1 Pie */}
               <div>
@@ -1930,12 +1968,12 @@ export default function Dashboard() {
               <Pie
                 data={(() => {
                   // Use comparison mode data if enabled
-                  const dataSource = comparisonMode && secondPeriodMetrics
+                  const dataSource = mode === 'comparison' && secondPeriodMetrics
                     ? secondPeriodMetrics.costByQuarter
                     : costByQuarter;
 
                   // In normal mode, only use the most recent quarter
-                  const quartersToProcess = !comparisonMode
+                  const quartersToProcess = !mode === 'comparison'
                     ? [getMostRecentQuarter(dataSource)].filter(Boolean)
                     : dataSource;
 
@@ -2027,7 +2065,7 @@ export default function Dashboard() {
               >
                 {(() => {
                   // Use comparison mode data if enabled
-                  const dataSource = comparisonMode && secondPeriodMetrics
+                  const dataSource = mode === 'comparison' && secondPeriodMetrics
                     ? secondPeriodMetrics.costByQuarter
                     : costByQuarter;
 
@@ -2092,12 +2130,12 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Damasco Operations vs PROCEED 3PL
-            {comparisonMode ? (
+            {mode === 'comparison' ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             ) : (
-              !comparisonMode && costByQuarter?.length > 0 && (
+              !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
                   ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
                 </span>
@@ -2106,7 +2144,7 @@ export default function Dashboard() {
           </h3>
           <ResponsiveContainer width="100%" height={350}>
             <ComposedChart
-              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
+              data={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ?
                 // Comparison mode: side-by-side columns for P1 and P2
                 (() => {
                   const comparisonData = [
@@ -2248,7 +2286,7 @@ export default function Dashboard() {
                   return null;
                 }}
               />
-              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+              {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
                 <>
                   <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
                   <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
@@ -2412,12 +2450,12 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Department Cost Trend
-            {comparisonMode ? (
+            {mode === 'comparison' ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
             ) : (
-              !comparisonMode && costByQuarter?.length > 0 && (
+              !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
                   ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
                 </span>
@@ -2426,7 +2464,7 @@ export default function Dashboard() {
           </h3>
           <ResponsiveContainer width="100%" height={400}>
             <ComposedChart
-              data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics
+              data={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics
                 ? // Comparison mode: side-by-side columns for each department
                 [
                   {
@@ -2482,7 +2520,7 @@ export default function Dashboard() {
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
-                dataKey={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? "name" : "quarter"}
+                dataKey={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? "name" : "quarter"}
                 tick={{
                   ...CHART_STYLES.tick,
                   fontWeight: 600
@@ -2503,7 +2541,7 @@ export default function Dashboard() {
                 labelStyle={CHART_STYLES.tooltip.labelStyle}
               />
               <Legend wrapperStyle={CHART_STYLES.legend.wrapperStyle} />
-              {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+              {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
                 <>
                   <Bar dataKey="period1" name={`Period 1 (${firstPeriod?.quarter})`} fill={PROCEED_COLORS.secondary}>
                     <LabelList
@@ -2816,14 +2854,14 @@ export default function Dashboard() {
       <div className="chart-container">
         <h3 className="text-lg font-semibold mb-4">
           TCO Model Categories
-          {comparisonMode && (
+          {mode === 'comparison' && (
             <span className="text-sm font-normal ml-3 text-gray-600">
               (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
             </span>
           )}
         </h3>
         <ResponsiveContainer width="100%" height={600}>
-          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <LineChart
               data={(() => {
                 // Get TCO categories from both periods
@@ -3589,7 +3627,7 @@ export default function Dashboard() {
             Object.keys(
               (() => {
                 const categories: { [key: string]: boolean } = {};
-                const dataSource = comparisonMode && secondPeriodMetrics
+                const dataSource = mode === 'comparison' && secondPeriodMetrics
                   ? secondPeriodMetrics.topExpenses
                   : metrics?.topExpenses;
                 dataSource?.forEach((item: any) => {
@@ -3600,7 +3638,7 @@ export default function Dashboard() {
             ).length
           }{" "}
           | Total Items Analyzed: {
-            comparisonMode && secondPeriodMetrics
+            mode === 'comparison' && secondPeriodMetrics
               ? secondPeriodMetrics.topExpenses?.length || 0
               : metrics?.topExpenses?.length || 0
           }
@@ -3612,7 +3650,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">
             GL Accounts by Total Cost
-            {comparisonMode && (
+            {mode === 'comparison' && (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
@@ -3635,7 +3673,7 @@ export default function Dashboard() {
           </div>
         </div>
         <ResponsiveContainer width="100%" height={500}>
-          {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
+          {mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <LineChart
               data={(() => {
                 // Get GL accounts from both periods
@@ -3793,7 +3831,7 @@ export default function Dashboard() {
                             strokeWidth={2}
                             paintOrder="stroke"
                           >
-                            {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}%
+                            {dataPoint.growth >= 0 ? '↑' : '↓'}{Math.abs(dataPoint.growth).toFixed(1)}% ({fmtShort(dataPoint.period2 - dataPoint.period1)})
                           </text>
                         )}
                       </g>
@@ -3867,16 +3905,16 @@ export default function Dashboard() {
           </div>
         </div>
         {(() => {
-          const gridData = comparisonMode && secondPeriodMetrics
+          const gridData = mode === 'comparison' && secondPeriodMetrics
             ? secondPeriodMetrics.topExpenses
             : metrics?.topExpenses;
 
-          const comparisonGridData = comparisonMode && firstPeriodMetrics
+          const comparisonGridData = mode === 'comparison' && firstPeriodMetrics
             ? firstPeriodMetrics.topExpenses
             : undefined;
 
           // Debug: log which period is which
-          if (comparisonMode) {
+          if (mode === 'comparison') {
             console.log('[Period Assignment]:', {
               firstPeriod: firstPeriod,
               secondPeriod: secondPeriod,
@@ -3893,7 +3931,7 @@ export default function Dashboard() {
             topExpensesLength: gridData?.length || 0,
             firstItem: gridData?.[0],
             willRenderGrid: gridData && gridData.length > 0,
-            comparisonMode,
+            comparisonMode: mode === 'comparison',
             hasComparisonData: !!comparisonGridData
           });
 
@@ -3903,7 +3941,7 @@ export default function Dashboard() {
                 <EnterpriseDataGrid
                   data={gridData}
                   comparisonData={comparisonGridData}
-                  showGrowth={comparisonMode && !!comparisonGridData}
+                  showGrowth={mode === 'comparison' && !!comparisonGridData}
                 />
               </>
             );
