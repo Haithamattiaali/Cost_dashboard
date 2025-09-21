@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: proceed-cost-dashboard-api
+    runtime: node
+    plan: free
+    region: oregon # You can change to singapore, frankfurt, or ohio
+    buildCommand: npm install && npm run build:backend
+    startCommand: node dist/backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/costs.db
+      - key: PORT
+        value: 3001
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+    disk:
+      name: proceed-dashboard-data
+      mountPath: /var/data
+      sizeGB: 1
+    healthCheckPath: /api/health
+    autoDeploy: true # Automatically deploy on git push

@@ -44,14 +44,13 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-6">
-              {/* DMSCO Logo (Parent Company) */}
+              {/* DMSCO Logo */}
               <div className="flex flex-col items-center">
                 <img
                   src="/assets/dmsco-logo.png"
                   alt="DMSCO"
                   className="h-12 object-contain"
                 />
-                <span className="text-[10px] text-gray-400 mt-1">Parent Company</span>
               </div>
               <button className="p-2 text-gray-500 hover:text-gray-700">
                 <Settings className="h-5 w-5" />

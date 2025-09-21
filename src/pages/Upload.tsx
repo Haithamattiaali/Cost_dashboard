@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload as UploadIcon, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload as UploadIcon, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, ArrowRight, X } from 'lucide-react';
 import { uploadExcelFile, getUploadStatus } from '../api/costs';
 import { formatDate } from '../utils/formatting';
+import { useNavigate } from 'react-router-dom';
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [clearExisting, setClearExisting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [showRedirectDialog, setShowRedirectDialog] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: status } = useQuery({
     queryKey: ['upload-status'],
@@ -22,6 +25,10 @@ export default function Upload() {
       queryClient.invalidateQueries({ queryKey: ['upload-status'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       setFile(null);
+      // Show redirect dialog after successful upload
+      setTimeout(() => {
+        setShowRedirectDialog(true);
+      }, 2000); // Give user time to see the validation report
     },
   });
 
@@ -169,6 +176,41 @@ export default function Upload() {
               </>
             )}
           </button>
+        </div>
+      )}
+
+      {/* Redirect Confirmation Dialog */}
+      {showRedirectDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload Successful!</h3>
+              <button
+                onClick={() => setShowRedirectDialog(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Your data has been successfully uploaded and validated. Would you like to view the data in the dashboard?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowRedirectDialog(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Stay Here
+              </button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="px-4 py-2 bg-[#9e1f63] text-white hover:bg-[#8a1a57] rounded-lg transition-colors flex items-center gap-2"
+              >
+                Go to Dashboard
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
