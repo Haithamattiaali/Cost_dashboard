@@ -58,7 +58,28 @@ async function initializeServer() {
 
   // Middleware
   app.use(cors({
-    origin: getConfig('security.corsOrigins'),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      // Check if origin is in allowed list
+      const allowedOrigins = getConfig('security.corsOrigins') || [];
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Check for Netlify wildcard
+      if (origin.endsWith('.netlify.app') || origin === 'https://protco.netlify.app') {
+        return callback(null, true);
+      }
+
+      // Allow localhost for development
+      if (origin.startsWith('http://localhost')) {
+        return callback(null, true);
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   }));
   app.use(express.json());
