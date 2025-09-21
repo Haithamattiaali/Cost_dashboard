@@ -322,7 +322,15 @@ class DataProcessor {
       .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
 
     // Division totals
-    const dmascoTotal = data.reduce((sum, row) => sum + (row.valueDmasco || 0), 0);
+    // DMASCO Operations = Pharmacies + Distribution + Last Mile
+    const dmascoTotal = data.reduce((sum, row) => {
+      const pharmacies = row.pharmaciesCost || 0;
+      const distribution = row.distributionCost || 0;
+      const lastMile = row.lastMileCost || 0;
+      return sum + pharmacies + distribution + lastMile;
+    }, 0);
+
+    // PROCEED 3PL = Sum of PROCEED 3PL values (already includes both WH and TRS)
     const proceed3PLTotal = data.reduce((sum, row) => sum + (row.valueProceed3PL || 0), 0);
 
     // Cost by quarter with department breakdown - matching Dashboard expectations
@@ -487,6 +495,19 @@ class DataProcessor {
       costByGLAccount,
       topExpenses
     };
+
+    // Log the breakdown for debugging
+    const pharmaciesTotal = data.reduce((sum, row) => sum + (row.pharmaciesCost || 0), 0);
+    const distributionTotal = data.reduce((sum, row) => sum + (row.distributionCost || 0), 0);
+    const lastMileTotal = data.reduce((sum, row) => sum + (row.lastMileCost || 0), 0);
+
+    console.log('[DataProcessor] Division Totals Breakdown:', {
+      pharmaciesTotal,
+      distributionTotal,
+      lastMileTotal,
+      dmascoTotal: dmascoTotal + ' (Ph+Dist+LM)',
+      proceed3PLTotal
+    });
 
     console.log('[DataProcessor] Calculated metrics:', {
       totalCost,
