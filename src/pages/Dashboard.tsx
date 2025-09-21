@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
@@ -29,10 +29,16 @@ import {
 } from "lucide-react";
 import MetricCard from "../components/MetricCard";
 import FilterPanel from "../components/FilterPanel";
-import { fetchDashboardMetrics } from "../api/costs";
+import { fetchDashboardMetrics, fetchFilterOptions } from "../api/costs";
 import { formatCurrency, formatPercentage } from "../utils/formatting";
 import { DataTable, DataTableColumn } from "../modules/data-table";
 import "../modules/data-table/styles.css";
+import {
+  extractAvailablePeriods,
+  pickDefaultComparison,
+  Period,
+  makeQuarter
+} from "../utils/periods";
 
 // PROCEED Brand Colors
 const PROCEED_COLORS = {
@@ -517,6 +523,88 @@ export default function Dashboard() {
   const [firstPeriod, setFirstPeriod] = useState<{ year: number; quarter: string } | null>(null);
   const [secondPeriod, setSecondPeriod] = useState<{ year: number; quarter: string } | null>(null);
 
+  // Fetch available filter options to extract periods
+  const { data: filterOptions } = useQuery({
+    queryKey: ['filter-options'],
+    queryFn: fetchFilterOptions,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Extract available periods from filter options
+  const availablePeriods = useMemo(() => {
+    if (!filterOptions?.years || !filterOptions?.quarters) return [];
+
+    const periods: Period[] = [];
+    const years = filterOptions.years as number[];
+    const quarters = filterOptions.quarters as string[];
+
+    // Create periods for each year-quarter combination that exists in data
+    for (const year of years) {
+      for (const quarter of quarters) {
+        const quarterNum = parseInt(quarter.replace(/[^0-9]/g, ''));
+        if (quarterNum >= 1 && quarterNum <= 4) {
+          periods.push(makeQuarter(year, quarterNum as 1 | 2 | 3 | 4));
+        }
+      }
+    }
+
+    // Sort by date
+    return periods.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [filterOptions]);
+
+  // Auto-select default periods when available periods change
+  useEffect(() => {
+    if (availablePeriods.length >= 2 && !firstPeriod && !secondPeriod) {
+      const defaults = pickDefaultComparison(availablePeriods);
+      if (defaults.p1 && defaults.p2) {
+        setFirstPeriod({
+          year: defaults.p1.year,
+          quarter: defaults.p1.value
+        });
+        setSecondPeriod({
+          year: defaults.p2.year,
+          quarter: defaults.p2.value
+        });
+      }
+    }
+
+    // Validate current selections
+    if (firstPeriod && availablePeriods.length > 0) {
+      const isValid = availablePeriods.some(
+        p => p.year === firstPeriod.year && p.value === firstPeriod.quarter
+      );
+      if (!isValid && availablePeriods.length >= 2) {
+        const defaults = pickDefaultComparison(availablePeriods);
+        if (defaults.p1) {
+          setFirstPeriod({
+            year: defaults.p1.year,
+            quarter: defaults.p1.value
+          });
+        }
+      }
+    }
+
+    if (secondPeriod && availablePeriods.length > 0) {
+      const isValid = availablePeriods.some(
+        p => p.year === secondPeriod.year && p.value === secondPeriod.quarter
+      );
+      if (!isValid && availablePeriods.length >= 2) {
+        const defaults = pickDefaultComparison(availablePeriods);
+        if (defaults.p2) {
+          setSecondPeriod({
+            year: defaults.p2.year,
+            quarter: defaults.p2.value
+          });
+        }
+      }
+    }
+
+    // Disable comparison mode if less than 2 periods available
+    if (availablePeriods.length < 2 && comparisonMode) {
+      setComparisonMode(false);
+    }
+  }, [availablePeriods]);
+
   // Main metrics query
   const {
     data: metrics,
@@ -772,15 +860,24 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-900">Comparison Mode</h3>
             <button
               onClick={() => {
+                if (availablePeriods.length < 2) return;
                 setComparisonMode(!comparisonMode);
-                if (!comparisonMode) {
-                  // Initialize with default periods when enabling (Q1 and Q2 have data)
-                  setFirstPeriod({ year: 2025, quarter: 'Q1' });
-                  setSecondPeriod({ year: 2025, quarter: 'Q2' });
+                if (!comparisonMode && availablePeriods.length >= 2) {
+                  // Initialize with default periods when enabling
+                  const defaults = pickDefaultComparison(availablePeriods);
+                  if (defaults.p1 && defaults.p2) {
+                    setFirstPeriod({ year: defaults.p1.year, quarter: defaults.p1.value });
+                    setSecondPeriod({ year: defaults.p2.year, quarter: defaults.p2.value });
+                  }
                 }
               }}
+              disabled={availablePeriods.length < 2}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                comparisonMode ? 'bg-[#9e1f63]' : 'bg-gray-200'
+                availablePeriods.length < 2
+                  ? 'bg-gray-100 cursor-not-allowed'
+                  : comparisonMode
+                    ? 'bg-[#9e1f63]'
+                    : 'bg-gray-200 hover:bg-gray-300'
               }`}
             >
               <span
@@ -790,44 +887,64 @@ export default function Dashboard() {
               />
             </button>
             <span className="text-sm text-gray-500">
-              {comparisonMode ? 'Enabled' : 'Disabled'}
+              {availablePeriods.length < 2
+                ? `Disabled (${availablePeriods.length} period${availablePeriods.length !== 1 ? 's' : ''} available)`
+                : comparisonMode ? 'Enabled' : 'Disabled'}
             </span>
           </div>
 
           {/* Period Selectors */}
           {comparisonMode && (
             <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Period 1:</label>
-                <select
-                  value={`${firstPeriod?.year}-${firstPeriod?.quarter}`}
-                  onChange={(e) => {
-                    const [year, quarter] = e.target.value.split('-');
-                    setFirstPeriod({ year: parseInt(year), quarter });
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                >
-                  <option value="2025-Q1">Q1 2025</option>
-                  <option value="2025-Q2">Q2 2025</option>
-                  <option value="2025-Q4">Q4 2025</option>
-                </select>
-              </div>
+              {availablePeriods.length < 2 ? (
+                <div className="text-sm text-gray-500 italic">
+                  Need at least two periods to compare. Current data has {availablePeriods.length} period{availablePeriods.length !== 1 ? 's' : ''}.
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-medium text-gray-700">Period 1:</label>
+                    <select
+                      value={firstPeriod ? `${firstPeriod.year}-${firstPeriod.quarter}` : ''}
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        const period = availablePeriods.find(p => p.key === e.target.value);
+                        if (period) {
+                          setFirstPeriod({ year: period.year, quarter: period.value });
+                        }
+                      }}
+                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
+                    >
+                      {availablePeriods.map(period => (
+                        <option key={period.key} value={period.key}>
+                          {period.display}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-gray-700">Period 2:</label>
-                <select
-                  value={`${secondPeriod?.year}-${secondPeriod?.quarter}`}
-                  onChange={(e) => {
-                    const [year, quarter] = e.target.value.split('-');
-                    setSecondPeriod({ year: parseInt(year), quarter });
-                  }}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                >
-                  <option value="2025-Q1">Q1 2025</option>
-                  <option value="2025-Q2">Q2 2025</option>
-                  <option value="2025-Q4">Q4 2025</option>
-                </select>
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-medium text-gray-700">Period 2:</label>
+                    <select
+                      value={secondPeriod ? `${secondPeriod.year}-${secondPeriod.quarter}` : ''}
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        const period = availablePeriods.find(p => p.key === e.target.value);
+                        if (period) {
+                          setSecondPeriod({ year: period.year, quarter: period.value });
+                        }
+                      }}
+                      className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
+                    >
+                      {availablePeriods.map(period => (
+                        <option key={period.key} value={period.key}>
+                          {period.display}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               {/* Growth Indicator */}
               {firstPeriodMetrics && secondPeriodMetrics && (
