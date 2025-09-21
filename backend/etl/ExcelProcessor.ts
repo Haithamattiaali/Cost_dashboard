@@ -94,33 +94,33 @@ export class ExcelProcessor {
   }
 
   private transformRow(row: any): CostDataRow {
-    // Exact headers from Excel file:
+    // Exact headers from Excel file (must match precisely including spaces and typos):
     // Column 1: "Type"
     // Column 2: "Year"
-    // Column 3: "quarter"
-    // Column 4: "Warehouse " (note trailing space)
+    // Column 3: "quarter" (lowercase)
+    // Column 4: "Warehouse " (with trailing space)
     // Column 5: "GL Account No."
     // Column 6: "GL Account Name"
     // Column 7: "GL Accounts Group"
     // Column 8: "Cost Type"
     // Column 9: "TCO Model Categories"
     // Column 10: "Main Categories"
-    // Column 11: "OpEx /CapEx"
-    // Column 12: "total incured cost"
-    // Column 13: "WH COST SHARE " (note trailing space)
-    // Column 14: "TRS COST SHARE " (note trailing space)
-    // Column 15: "WH COST VALUE"
-    // Column 16: "TRS COST VALUE " (note trailing space)
-    // Column 17: "Dist. COST SHARE " (note trailing space)
-    // Column 18: "Last Mile (TRS) COST SHARE " (note trailing space)
-    // Column 19: "Proceed 3PL (WH) COST SHARE " (note trailing space)
-    // Column 20: "Proceed 3PL (TRS) COST SHARE " (note trailing space)
-    // Column 21: "PHs COST VALUE " (note trailing space)
-    // Column 22: "Dist. COST VALUE " (note trailing space)
-    // Column 23: "Last Mile COST VALUE " (note trailing space)
-    // Column 24: "Proceed 3PL (WH) COST VALUE " (note trailing space)
-    // Column 25: "Proceed 3PL (TRS) COST VALUE " (note trailing space)
-    // Column 26: "PROCEED 3pl COST VALUE " (note trailing space)
+    // Column 11: "OpEx /CapEx" (space before slash)
+    // Column 12: " total incured cost " (spaces on both sides, typo "incured")
+    // Column 13: "WH COST SHARE " (trailing space)
+    // Column 14: "TRS COST SHARE " (trailing space)
+    // Column 15: " WH COST VALUE " (leading space)
+    // Column 16: " TRS COST VALUE  " (spaces on both sides)
+    // Column 17: "Dist. COST SHARE " (trailing space)
+    // Column 18: "Last Mile (TRS) COST SHARE " (trailing space)
+    // Column 19: "Proceed 3PL (WH) COST SHARE " (trailing space)
+    // Column 20: "Proceed 3PL (TRS) COST SHARE " (trailing space)
+    // Column 21: " PHs COST VALUE  " (spaces on both sides)
+    // Column 22: " Dist. COST VALUE  " (spaces on both sides)
+    // Column 23: " Last Mile COST VALUE  " (spaces on both sides)
+    // Column 24: " Proceed 3PL (WH) COST VALUE  " (spaces on both sides)
+    // Column 25: " Proceed 3PL (TRS) COST VALUE  " (spaces on both sides)
+    // Column 26: " PROCEED 3pl COST VALUE  " (spaces on both sides, lowercase "3pl")
 
     return {
       year: this.parseNumber(row['Year']),
@@ -134,7 +134,7 @@ export class ExcelProcessor {
       tcoModelCategories: String(row['TCO Model Categories'] || ''),
       mainCategories: String(row['Main Categories'] || ''),
       opexCapex: String(row['OpEx /CapEx'] || ''), // Note: different spacing
-      totalIncurredCost: this.parseNumber(row[' total incured cost ']), // Note: SPACES, lowercase and typo "incured"
+      totalIncurredCost: this.parseNumber(row[' total incured cost '] || row['total incured cost']), // Note: SPACES, lowercase and typo "incured"
       shareWH: this.parsePercentage(row['WH COST SHARE ']), // Note trailing space
       shareTRS: this.parsePercentage(row['TRS COST SHARE ']), // Note trailing space
       shareDistribution: this.parsePercentage(row['Dist. COST SHARE ']), // Note different format

@@ -12,10 +12,6 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
   const [filters, setFilters] = useState({
     year: '',
     quarter: '',
-    warehouse: '',
-    type: '',
-    costType: '',
-    opexCapex: '',
   });
 
   const { data: filterOptions, isLoading, isError, error } = useQuery({
@@ -48,10 +44,6 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
     setFilters({
       year: '',
       quarter: '',
-      warehouse: '',
-      type: '',
-      costType: '',
-      opexCapex: '',
     });
   };
 
@@ -100,7 +92,7 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
           )}
 
           {!isLoading && !isError && filterOptions && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 fade-in">
+            <div className="grid grid-cols-2 gap-4 fade-in">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
                 <select
@@ -125,67 +117,6 @@ export default function FilterPanel({ onFiltersChange }: FilterPanelProps) {
                   <option value="">All Quarters</option>
                   {filterValidOptions(filterOptions?.quarters)?.map((quarter: string) => (
                     <option key={quarter} value={quarter}>{quarter.toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
-                <select
-                  value={filters.warehouse}
-                  onChange={(e) => handleFilterChange('warehouse', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                  disabled={filterValidOptions(filterOptions?.warehouses).length === 0}
-                >
-                  <option value="">
-                    {filterValidOptions(filterOptions?.warehouses).length === 0
-                      ? "No Warehouses Available"
-                      : "All Warehouses"}
-                  </option>
-                  {filterValidOptions(filterOptions?.warehouses)?.map((warehouse: string) => (
-                    <option key={warehouse} value={warehouse}>{warehouse}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                  value={filters.type}
-                  onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                >
-                  <option value="">All Types</option>
-                  {filterValidOptions(filterOptions?.types)?.map((type: string) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cost Type</label>
-                <select
-                  value={filters.costType}
-                  onChange={(e) => handleFilterChange('costType', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                >
-                  <option value="">All Cost Types</option>
-                  {filterValidOptions(filterOptions?.costTypes)?.map((costType: string) => (
-                    <option key={costType} value={costType}>{costType}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">OPEX/CAPEX</label>
-                <select
-                  value={filters.opexCapex}
-                  onChange={(e) => handleFilterChange('opexCapex', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9e1f63]"
-                >
-                  <option value="">All</option>
-                  {filterValidOptions(filterOptions?.opexCapex)?.map((opex: string) => (
-                    <option key={opex} value={opex}>{opex}</option>
                   ))}
                 </select>
               </div>

@@ -136,26 +136,16 @@ export default function Upload() {
 
       {/* Options */}
       {file && (
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={clearExisting}
-              onChange={(e) => setClearExisting(e.target.checked)}
-              className="h-4 w-4 text-[#9e1f63] focus:ring-[#9e1f63] border-gray-300 rounded"
-            />
-            <span className="ml-2 text-sm text-gray-700">
-              Clear existing data before importing
-            </span>
-          </label>
-          {clearExisting && (
-            <div className="mt-2 ml-6">
-              <p className="text-xs text-yellow-600 flex items-start">
-                <AlertCircle className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0" />
-                Warning: This will delete all existing cost data in the database
+        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-gray-900">Important: Data will be replaced</p>
+              <p className="text-sm text-gray-700 mt-1">
+                To prevent duplicate entries, all existing data will be cleared before importing the new file.
               </p>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -219,22 +209,45 @@ export default function Upload() {
       {/* Instructions */}
       <div className="bg-gray-50 rounded-lg p-6">
         <h3 className="font-semibold text-gray-900 mb-3">Excel File Format</h3>
+        <div className="bg-yellow-100 border border-yellow-300 rounded p-3 mb-3">
+          <p className="text-sm text-yellow-800 font-medium flex items-start">
+            <AlertCircle className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+            Column headers must match EXACTLY including spaces and typos
+          </p>
+        </div>
         <p className="text-sm text-gray-600 mb-3">
-          Your Excel file should contain the following columns:
+          Your Excel file must contain these exact column headers (copy them precisely):
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
           {[
-            'Year', 'Quarter', 'Warehouse', 'Type',
-            'GL Account No', 'GL Account Name', 'Cost Type',
-            'TCO Model Categories', 'Opex/Capex',
-            'Total Incurred Cost', 'Share-WH', 'Share-TRS',
-            'Share-Distribution', 'Share-Last Mile',
-            'Share-Proceed 3PL -WH', 'Share-Proceed 3PL-TRS',
-            'Value-WH', 'Value-TRS', 'Value-Distribution',
-            'Value-Last Mile', 'Value-Proceed 3PL -WH',
-            'Value-Proceed 3PL-TRS'
+            'Type',
+            'Year',
+            'quarter',
+            'Warehouse ', // Note: trailing space
+            'GL Account No.',
+            'GL Account Name',
+            'GL Accounts Group',
+            'Cost Type',
+            'TCO Model Categories',
+            'Main Categories',
+            'OpEx /CapEx',
+            ' total incured cost ', // Note: spaces and typo
+            'WH COST SHARE ',
+            'TRS COST SHARE ',
+            'Dist. COST SHARE ',
+            'Last Mile (TRS) COST SHARE ',
+            'Proceed 3PL (WH) COST SHARE ',
+            'Proceed 3PL (TRS) COST SHARE ',
+            ' WH COST VALUE ',
+            ' TRS COST VALUE  ',
+            ' Dist. COST VALUE  ',
+            ' Last Mile COST VALUE  ',
+            ' Proceed 3PL (WH) COST VALUE  ',
+            ' Proceed 3PL (TRS) COST VALUE  ',
+            ' PHs COST VALUE  ',
+            ' PROCEED 3pl COST VALUE  '
           ].map(col => (
-            <div key={col} className="bg-white px-2 py-1 rounded border border-gray-200">
+            <div key={col} className="bg-white px-2 py-1 rounded border border-gray-200 font-mono">
               {col}
             </div>
           ))}

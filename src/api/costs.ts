@@ -1,7 +1,14 @@
 const API_BASE_URL = '/api';
 
 export async function fetchDashboardMetrics(filters?: any) {
-  const params = new URLSearchParams(filters);
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== '') {
+        params.append(key, filters[key]);
+      }
+    });
+  }
   const response = await fetch(`${API_BASE_URL}/costs/dashboard?${params}`);
   if (!response.ok) throw new Error('Failed to fetch dashboard metrics');
   const data = await response.json();
@@ -16,7 +23,14 @@ export async function fetchFilterOptions() {
 }
 
 export async function fetchCostData(filters?: any) {
-  const params = new URLSearchParams(filters);
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== '') {
+        params.append(key, filters[key]);
+      }
+    });
+  }
   const response = await fetch(`${API_BASE_URL}/costs?${params}`);
   if (!response.ok) throw new Error('Failed to fetch cost data');
   return response.json();

@@ -239,14 +239,137 @@ const CHART_STYLES = {
 };
 
 // Enterprise Data Grid Component
-const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
+const EnterpriseDataGrid: React.FC<{
+  data: any[],
+  comparisonData?: any[],
+  showGrowth?: boolean
+}> = ({ data, comparisonData, showGrowth = false }) => {
   // Log the incoming data
   console.log('[EnterpriseDataGrid] Received data:', {
     dataLength: data?.length,
     firstItem: data?.[0],
     dataType: typeof data,
-    isArray: Array.isArray(data)
+    isArray: Array.isArray(data),
+    hasComparisonData: !!comparisonData,
+    showGrowth
   });
+
+  // Calculate data with growth if needed
+  const processedData = useMemo(() => {
+    if (!showGrowth || !comparisonData || !data) {
+      console.log('[Growth Calculation] Not processing - showGrowth:', showGrowth, 'hasComparison:', !!comparisonData, 'hasData:', !!data);
+      return data || [];
+    }
+
+    console.log('[Growth Calculation] Processing data:', {
+      dataLength: data?.length,
+      comparisonDataLength: comparisonData?.length,
+      showGrowth,
+      sampleCurrentData: data?.[0],
+      sampleComparisonData: comparisonData?.[0],
+      currentKeys: data?.[0] ? Object.keys(data[0]) : [],
+      comparisonKeys: comparisonData?.[0] ? Object.keys(comparisonData[0]) : []
+    });
+
+    // Debug: Show first 3 rows from each dataset to understand structure
+    console.log('[Growth Debug] First 3 current rows:', data?.slice(0, 3).map(r => ({
+      glAccountNo: r.glAccountNo,
+      glAccountName: r.glAccountName,
+      cost: r.totalIncurredCost
+    })));
+
+    console.log('[Growth Debug] First 3 comparison rows:', comparisonData?.slice(0, 3).map(r => ({
+      glAccountNo: r.glAccountNo,
+      glAccountName: r.glAccountName,
+      cost: r.totalIncurredCost
+    })));
+
+    // Map ALL rows from period 2 data with growth calculations
+    const processedRows = data.map((row, index) => {
+      // Find matching row in comparison data - try multiple matching strategies
+      const comparisonRow = comparisonData.find(cRow => {
+        // Debug first few rows
+        if (index < 3) {
+          console.log(`[Matching Debug ${index}] Comparing:`, {
+            current: { no: row?.glAccountNo, name: row?.glAccountName },
+            against: { no: cRow?.glAccountNo, name: cRow?.glAccountName }
+          });
+        }
+
+        // Primary match: glAccountNo if both have it
+        if (row?.glAccountNo && cRow?.glAccountNo) {
+          const matched = String(row.glAccountNo).trim() === String(cRow.glAccountNo).trim();
+          if (matched && index < 3) {
+            console.log(`[Match Found ${index}] By glAccountNo:`, row.glAccountNo);
+          }
+          return matched;
+        }
+
+        // Secondary match: glAccountName (case-insensitive, trimmed)
+        if (row?.glAccountName && cRow?.glAccountName) {
+          const currentName = String(row.glAccountName).trim().toLowerCase();
+          const compName = String(cRow.glAccountName).trim().toLowerCase();
+          const matched = currentName === compName;
+          if (matched && index < 3) {
+            console.log(`[Match Found ${index}] By glAccountName:`, row.glAccountName);
+          }
+          return matched;
+        }
+
+        return false;
+      });
+
+      let growth = 0; // Default to 0 if no comparison
+
+      if (comparisonRow) {
+        const currentCost = row.totalIncurredCost || 0;
+        const previousCost = comparisonRow.totalIncurredCost || 0;
+
+        if (previousCost === 0 && currentCost === 0) {
+          growth = 0;
+        } else if (previousCost === 0 && currentCost > 0) {
+          growth = 100; // New cost (100% growth)
+        } else if (previousCost > 0 && currentCost === 0) {
+          growth = -100; // Cost eliminated
+        } else if (previousCost > 0) {
+          growth = ((currentCost - previousCost) / previousCost) * 100;
+        }
+
+        console.log(`[Growth ${index}] Matched:`, {
+          account: row.glAccountName,
+          glNo: row.glAccountNo,
+          current: currentCost,
+          previous: previousCost,
+          growth: growth.toFixed(2) + '%'
+        });
+      } else {
+        // No matching row in comparison period - this is a new expense
+        growth = row.totalIncurredCost > 0 ? 100 : 0;
+        console.log(`[Growth ${index}] New expense (no match):`, {
+          account: row.glAccountName,
+          glNo: row.glAccountNo,
+          current: row.totalIncurredCost,
+          growth: growth + '%'
+        });
+      }
+
+      return {
+        ...row,
+        growth
+      };
+    });
+
+    console.log('[Growth Calculation] Completed:', {
+      totalRows: processedRows.length,
+      rowsWithGrowth: processedRows.filter(r => r.growth !== null && r.growth !== undefined).length,
+      sampleGrowthValues: processedRows.slice(0, 5).map(r => ({
+        name: r.glAccountName,
+        growth: r.growth
+      }))
+    });
+
+    return processedRows;
+  }, [data, comparisonData, showGrowth]);
 
   // Define columns with simplified configuration
   const columns: DataTableColumn[] = useMemo(() => [
@@ -346,13 +469,35 @@ const EnterpriseDataGrid: React.FC<{ data: any[] }> = ({ data }) => {
       width: 120,
       formatter: (value) => formatCurrency(value),
       enableAggregation: true
-    }
-  ], []);
+    },
+    ...(showGrowth ? [{
+      id: 'growth',
+      header: 'Growth %',
+      accessorKey: 'growth',
+      dataType: 'text',
+      width: 100,
+      formatter: (value) => {
+        // The value will be pre-calculated
+        if (value === undefined || value === null) {
+          return <span className="text-gray-400">N/A</span>;
+        }
+
+        const growthValue = typeof value === 'number' ? value : 0;
+        const isPositive = growthValue >= 0;
+
+        return (
+          <span className={`font-semibold ${isPositive ? 'text-red-600' : 'text-green-600'}`}>
+            {isPositive ? '↑' : '↓'} {Math.abs(growthValue).toFixed(1)}%
+          </span>
+        );
+      }
+    }] : [])
+  ], [showGrowth, comparisonData]);
 
   // Render the enhanced DataTable with all Excel-like features
   return (
     <DataTable
-      data={data}
+      data={processedData}
       columns={columns}
       pageSize={50}
       enablePagination={true}
@@ -422,6 +567,19 @@ export default function Dashboard() {
     // Normal calculation
     return ((period2Value - period1Value) / period1Value) * 100;
   };
+
+  // Get the most recent quarter from the data
+  const getMostRecentQuarter = (quarters: any[]) => {
+    if (!quarters?.length) return null;
+    // Define quarter order for sorting
+    const quarterOrder: { [key: string]: number } = { 'q1': 1, 'q2': 2, 'q3': 3, 'q4': 4 };
+    // Sort quarters by their order and return the most recent (highest order)
+    return quarters.sort((a, b) => {
+      const orderA = quarterOrder[a.value?.toLowerCase()] || 0;
+      const orderB = quarterOrder[b.value?.toLowerCase()] || 0;
+      return orderB - orderA; // Descending order to get the most recent first
+    })[0];
+  }
 
   // Debug logging for CAPEX issue
   React.useEffect(() => {
@@ -556,9 +714,9 @@ export default function Dashboard() {
               onClick={() => {
                 setComparisonMode(!comparisonMode);
                 if (!comparisonMode) {
-                  // Initialize with default periods when enabling (Q2 and Q3 have data)
-                  setFirstPeriod({ year: 2025, quarter: 'Q2' });
-                  setSecondPeriod({ year: 2025, quarter: 'Q3' });
+                  // Initialize with default periods when enabling (Q1 and Q2 have data)
+                  setFirstPeriod({ year: 2025, quarter: 'Q1' });
+                  setSecondPeriod({ year: 2025, quarter: 'Q2' });
                 }
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -591,7 +749,6 @@ export default function Dashboard() {
                 >
                   <option value="2025-Q1">Q1 2025</option>
                   <option value="2025-Q2">Q2 2025</option>
-                  <option value="2025-Q3">Q3 2025</option>
                   <option value="2025-Q4">Q4 2025</option>
                 </select>
               </div>
@@ -608,7 +765,6 @@ export default function Dashboard() {
                 >
                   <option value="2025-Q1">Q1 2025</option>
                   <option value="2025-Q2">Q2 2025</option>
-                  <option value="2025-Q3">Q3 2025</option>
                   <option value="2025-Q4">Q4 2025</option>
                 </select>
               </div>
@@ -734,6 +890,7 @@ export default function Dashboard() {
         />
       </div>
 
+
       {/* Full-Width Charts */}
       <div className="grid grid-cols-1 gap-6">
         {/* Cost by Quarter - Full Width */}
@@ -750,7 +907,11 @@ export default function Dashboard() {
             <BarChart
               data={comparisonMode && firstPeriodMetrics && secondPeriodMetrics ?
                 // Comparison mode: Show each quarter with comparison data
-                costByQuarter?.map(q => {
+                [...(costByQuarter || [])].sort((a, b) => {
+                  const orderA = {'q1':1,'q2':2,'q3':3,'q4':4}[a.value?.toLowerCase()]||0;
+                  const orderB = {'q1':1,'q2':2,'q3':3,'q4':4}[b.value?.toLowerCase()]||0;
+                  return orderA - orderB;
+                }).map(q => {
                   const period1Data = firstPeriodMetrics.costByQuarter?.find((p1q: any) => p1q.value === q.value);
                   const period2Data = secondPeriodMetrics.costByQuarter?.find((p2q: any) => p2q.value === q.value);
                   const period1Cost = period1Data?.totalCost || 0;
@@ -768,8 +929,12 @@ export default function Dashboard() {
                       `${growth > 0 ? '↑' : growth < 0 ? '↓' : ''} ${growth > 0 ? '+' : ''}${growth.toFixed(1)}%` : null
                   };
                 }) :
-                // Normal mode
-                costByQuarter
+                // Normal mode - create a sorted copy
+                [...(costByQuarter || [])].sort((a, b) => {
+                  const orderA = {'q1':1,'q2':2,'q3':3,'q4':4}[a.value?.toLowerCase()]||0;
+                  const orderB = {'q1':1,'q2':2,'q3':3,'q4':4}[b.value?.toLowerCase()]||0;
+                  return orderA - orderB;
+                })
               }
               margin={{ top: 50, right: 30, left: 20, bottom: 80 }}
             >
@@ -904,14 +1069,18 @@ export default function Dashboard() {
                         return (
                           <text
                             x={x + width / 2}
-                            y={y - 25}
+                            y={y - 28}
                             fill={growthValue > 0 ? '#dc2626' : growthValue < 0 ? '#16a34a' : '#6b7280'}
                             textAnchor="middle"
-                            fontSize={11}
-                            fontWeight={700}
+                            fontSize={13}
+                            fontWeight={800}
                             stroke="white"
-                            strokeWidth={2}
+                            strokeWidth={3}
                             paintOrder="stroke"
+                            style={{
+                              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                              letterSpacing: '-0.02em'
+                            }}
                           >
                             {`${growthValue > 0 ? '↑' : growthValue < 0 ? '↓' : ''}${growthValue > 0 ? '+' : ''}${growthValue.toFixed(1)}%`}
                           </text>
@@ -1011,7 +1180,7 @@ export default function Dashboard() {
                         { name: "CAPEX", value: firstPeriodMetrics.totalCapex || 0 },
                       ].filter((item) => item.value > 0)
                         .map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent} />
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.gray} />
                         ))}
                     </Pie>
                     <Tooltip formatter={(value) => formatCurrency(value as number)} />
@@ -1086,7 +1255,7 @@ export default function Dashboard() {
                         { name: "CAPEX", value: secondPeriodMetrics.totalCapex || 0 },
                       ].filter((item) => item.value > 0)
                         .map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.accent} />
+                          <Cell key={`cell-${index}`} fill={index === 0 ? PROCEED_COLORS.blue : PROCEED_COLORS.gray} />
                         ))}
                     </Pie>
                     <Tooltip formatter={(value) => formatCurrency(value as number)} />
@@ -1129,29 +1298,48 @@ export default function Dashboard() {
                     name,
                   } = props;
                   const RADIAN = Math.PI / 180;
+
+                  // Position for values inside the slice
+                  const sliceRadius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  const sliceX = cx + sliceRadius * Math.cos(-midAngle * RADIAN);
+                  const sliceY = cy + sliceRadius * Math.sin(-midAngle * RADIAN);
+
+                  // Position for external label
                   const radius = outerRadius + 30;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
                   return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill={
-                        index === 0
-                          ? PROCEED_COLORS.blue
-                          : PROCEED_COLORS.accent
-                      }
-                      textAnchor={x > cx ? "start" : "end"}
-                      dominantBaseline="central"
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: 15,
-                        fontFamily: 'Montserrat, sans-serif'
-                      }}
-                    >
-                      {name}
-                    </text>
+                    <g>
+                      {/* Values and percentages inside the slice */}
+                      <text x={sliceX} y={sliceY - 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                            style={{ fontWeight: 'bold', fontSize: 14 }}>
+                        {formatCurrency(value, true).replace('SAR ', '')}
+                      </text>
+                      <text x={sliceX} y={sliceY + 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                            style={{ fontWeight: 'bold', fontSize: 12 }}>
+                        ({(percent * 100).toFixed(1)}%)
+                      </text>
+                      {/* Category name as external label */}
+                      <text
+                        x={x}
+                        y={y}
+                        fill={
+                          index === 0
+                            ? PROCEED_COLORS.blue
+                            : PROCEED_COLORS.gray
+                        }
+                        textAnchor={x > cx ? "start" : "end"}
+                        dominantBaseline="central"
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: 15,
+                          fontFamily: 'Montserrat, sans-serif'
+                        }}
+                      >
+                        {name}
+                      </text>
+                    </g>
                   );
                 }}
                 outerRadius={100}
@@ -1179,7 +1367,7 @@ export default function Dashboard() {
                       fill={
                         index === 0
                           ? PROCEED_COLORS.blue
-                          : PROCEED_COLORS.accent
+                          : "#424046"
                       }
                     />
                   ))}
@@ -1230,7 +1418,13 @@ export default function Dashboard() {
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-                  const total = (totalOpex || 0) + (totalCapex || 0);
+                  const opexVal = comparisonMode && secondPeriodMetrics
+                    ? secondPeriodMetrics.totalOpex || 0
+                    : totalOpex || 0;
+                  const capexVal = comparisonMode && secondPeriodMetrics
+                    ? secondPeriodMetrics.totalCapex || 0
+                    : totalCapex || 0;
+                  const total = opexVal + capexVal;
                   const percentage =
                     total > 0 ? ((value / total) * 100).toFixed(1) : "0";
                   const formattedValue = formatCurrency(value, true).replace(
@@ -1295,10 +1489,16 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Warehouse vs Transportation Cost
-            {comparisonMode && (
+            {comparisonMode ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
+            ) : (
+              !comparisonMode && costByQuarter?.length > 0 && (
+                <span className="text-sm font-normal ml-3 text-gray-600">
+                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                </span>
+              )
             )}
           </h3>
           {comparisonMode && firstPeriodMetrics && secondPeriodMetrics ? (
@@ -1459,9 +1659,14 @@ export default function Dashboard() {
                     ? secondPeriodMetrics.costByQuarter
                     : costByQuarter;
 
-                  // Aggregate warehouse and transportation costs from all quarters
+                  // In normal mode, only use the most recent quarter
+                  const quartersToProcess = !comparisonMode
+                    ? [getMostRecentQuarter(dataSource)].filter(Boolean)
+                    : dataSource;
+
+                  // Aggregate warehouse and transportation costs
                   const warehouseTotal =
-                    dataSource?.reduce(
+                    quartersToProcess?.reduce(
                       (sum, q) =>
                         sum +
                         (q.warehouseCost || 0) +
@@ -1469,7 +1674,7 @@ export default function Dashboard() {
                       0,
                     ) || 0;
                   const transportationTotal =
-                    dataSource?.reduce(
+                    quartersToProcess?.reduce(
                       (sum, q) =>
                         sum +
                         (q.transportationCost || 0) +
@@ -1497,29 +1702,48 @@ export default function Dashboard() {
                     name,
                   } = props;
                   const RADIAN = Math.PI / 180;
+
+                  // Position for values inside the slice
+                  const sliceRadius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  const sliceX = cx + sliceRadius * Math.cos(-midAngle * RADIAN);
+                  const sliceY = cy + sliceRadius * Math.sin(-midAngle * RADIAN);
+
+                  // Position for external label
                   const radius = outerRadius + 30;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
                   return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill={
-                        index === 0
-                          ? PROCEED_COLORS.primary
-                          : PROCEED_COLORS.secondary
-                      }
-                      textAnchor={x > cx ? "start" : "end"}
-                      dominantBaseline="central"
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: 15,
-                        fontFamily: 'Montserrat, sans-serif'
-                      }}
-                    >
-                      {name}
-                    </text>
+                    <g>
+                      {/* Values and percentages inside the slice */}
+                      <text x={sliceX} y={sliceY - 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                            style={{ fontWeight: 'bold', fontSize: 14 }}>
+                        {formatCurrency(value, true).replace('SAR ', '')}
+                      </text>
+                      <text x={sliceX} y={sliceY + 8} fill="white" textAnchor="middle" dominantBaseline="central"
+                            style={{ fontWeight: 'bold', fontSize: 12 }}>
+                        ({(percent * 100).toFixed(1)}%)
+                      </text>
+                      {/* Category name as external label */}
+                      <text
+                        x={x}
+                        y={y}
+                        fill={
+                          index === 0
+                            ? PROCEED_COLORS.primary
+                            : PROCEED_COLORS.secondary
+                        }
+                        textAnchor={x > cx ? "start" : "end"}
+                        dominantBaseline="central"
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: 15,
+                          fontFamily: 'Montserrat, sans-serif'
+                        }}
+                      >
+                        {name}
+                      </text>
+                    </g>
                   );
                 }}
                 outerRadius={100}
@@ -1565,108 +1789,6 @@ export default function Dashboard() {
                     ));
                 })()}
               </Pie>
-              <Pie
-                data={(() => {
-                  // Use comparison mode data if enabled
-                  const dataSource = comparisonMode && secondPeriodMetrics
-                    ? secondPeriodMetrics.costByQuarter
-                    : costByQuarter;
-
-                  const warehouseTotal =
-                    dataSource?.reduce(
-                      (sum, q) =>
-                        sum +
-                        (q.warehouseCost || 0) +
-                        (q.proceed3PLWHCost || 0),
-                      0,
-                    ) || 0;
-                  const transportationTotal =
-                    dataSource?.reduce(
-                      (sum, q) =>
-                        sum +
-                        (q.transportationCost || 0) +
-                        (q.proceed3PLTRSCost || 0),
-                      0,
-                    ) || 0;
-                  return [
-                    { name: "Warehouse", value: warehouseTotal },
-                    { name: "Transportation", value: transportationTotal },
-                  ].filter((item) => item.value > 0);
-                })()}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={(props) => {
-                  const {
-                    cx,
-                    cy,
-                    midAngle,
-                    innerRadius,
-                    outerRadius,
-                    percent,
-                    value,
-                  } = props;
-                  const RADIAN = Math.PI / 180;
-                  const radius =
-                    innerRadius + (outerRadius - innerRadius) * 0.5;
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-                  const warehouseTotal =
-                    costByQuarter?.reduce(
-                      (sum, q) =>
-                        sum +
-                        (q.warehouseCost || 0) +
-                        (q.proceed3PLWHCost || 0),
-                      0,
-                    ) || 0;
-                  const transportationTotal =
-                    costByQuarter?.reduce(
-                      (sum, q) =>
-                        sum +
-                        (q.transportationCost || 0) +
-                        (q.proceed3PLTRSCost || 0),
-                      0,
-                    ) || 0;
-                  const total = warehouseTotal + transportationTotal;
-                  const percentage =
-                    total > 0 ? ((value / total) * 100).toFixed(1) : "0";
-                  const formattedValue = formatCurrency(value, true).replace(
-                    "SAR ",
-                    "",
-                  );
-
-                  return (
-                    <g>
-                      <text
-                        x={x}
-                        y={y - 8}
-                        fill="white"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        style={{ fontWeight: "bold", fontSize: 14 }}
-                      >
-                        {formattedValue}
-                      </text>
-                      <text
-                        x={x}
-                        y={y + 8}
-                        fill="white"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        style={{ fontWeight: "bold", fontSize: 12 }}
-                      >
-                        {`${percentage}%`}
-                      </text>
-                    </g>
-                  );
-                }}
-                innerRadius={0}
-                outerRadius={100}
-                fill="transparent"
-                dataKey="value"
-                isAnimationActive={false}
-              />
               <Tooltip
                 formatter={(value) => formatCurrency(value as number)}
                 contentStyle={CHART_STYLES.tooltip.contentStyle}
@@ -1695,10 +1817,16 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Damasco Operations vs PROCEED 3PL
-            {comparisonMode && (
+            {comparisonMode ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
+            ) : (
+              !comparisonMode && costByQuarter?.length > 0 && (
+                <span className="text-sm font-normal ml-3 text-gray-600">
+                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                </span>
+              )
             )}
           </h3>
           <ResponsiveContainer width="100%" height={350}>
@@ -1722,22 +1850,26 @@ export default function Dashboard() {
                   ];
                   return comparisonData;
                 })() :
-                // Normal mode
+                // Normal mode - use only most recent quarter
                 (() => {
                   const dataSource = costByQuarter;
 
+                  // In normal mode, only use the most recent quarter
+                  const recentQuarter = getMostRecentQuarter(dataSource);
+                  const quartersToProcess = recentQuarter ? [recentQuarter] : [];
+
                 const pharmaciesTotal =
-                  dataSource?.reduce(
+                  quartersToProcess?.reduce(
                     (sum, q) => sum + (q.pharmaciesCost || 0),
                     0,
                   ) || 0;
                 const distributionTotal =
-                  dataSource?.reduce(
+                  quartersToProcess?.reduce(
                     (sum, q) => sum + (q.distributionCost || 0),
                     0,
                   ) || 0;
                 const lastMileTotal =
-                  dataSource?.reduce(
+                  quartersToProcess?.reduce(
                     (sum, q) => sum + (q.lastMileCost || 0),
                     0,
                   ) || 0;
@@ -1745,12 +1877,12 @@ export default function Dashboard() {
                   pharmaciesTotal + distributionTotal + lastMileTotal;
 
                 const proceed3PLWHTotal =
-                  dataSource?.reduce(
+                  quartersToProcess?.reduce(
                     (sum, q) => sum + (q.proceed3PLWHCost || 0),
                     0,
                   ) || 0;
                 const proceed3PLTRSTotal =
-                  dataSource?.reduce(
+                  quartersToProcess?.reduce(
                     (sum, q) => sum + (q.proceed3PLTRSCost || 0),
                     0,
                   ) || 0;
@@ -1772,7 +1904,7 @@ export default function Dashboard() {
                   },
                 ];
               })()}
-              margin={{ top: 50, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 60, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -1990,6 +2122,13 @@ export default function Dashboard() {
                 <Cell fill={PROCEED_COLORS.blue} />
               </Bar>
               )}
+              <Legend
+                wrapperStyle={CHART_STYLES.legend.wrapperStyle}
+                payload={[
+                  { value: 'Damasco Operations', type: 'rect', color: PROCEED_COLORS.darkRed },
+                  { value: 'PROCEED 3PL', type: 'rect', color: PROCEED_COLORS.blue }
+                ]}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -1998,10 +2137,16 @@ export default function Dashboard() {
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
             Department Cost Trend
-            {comparisonMode && (
+            {comparisonMode ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
               </span>
+            ) : (
+              !comparisonMode && costByQuarter?.length > 0 && (
+                <span className="text-sm font-normal ml-3 text-gray-600">
+                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                </span>
+              )
             )}
           </h3>
           <ResponsiveContainer width="100%" height={400}>
@@ -2046,16 +2191,19 @@ export default function Dashboard() {
                     )
                   }
                 ]
-                : // Normal mode
-                costByQuarter?.map((q) => ({
-                  quarter: q.value.toUpperCase(),
-                  Pharmacies: q.pharmaciesCost || 0,
-                  Distribution: q.distributionCost || 0,
-                  "Last Mile": q.lastMileCost || 0,
-                  "PROCEED 3PL": (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0),
-                }))
+                : // Normal mode - show only most recent quarter
+                (() => {
+                  const recentQ = getMostRecentQuarter(costByQuarter);
+                  return recentQ ? [{
+                    quarter: recentQ.value.toUpperCase(),
+                    Pharmacies: recentQ.pharmaciesCost || 0,
+                    Distribution: recentQ.distributionCost || 0,
+                    "Last Mile": recentQ.lastMileCost || 0,
+                    "PROCEED 3PL": (recentQ.proceed3PLWHCost || 0) + (recentQ.proceed3PLTRSCost || 0),
+                  }] : [];
+                })()
               }
-              margin={{ top: 50, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 60, right: 30, left: 20, bottom: 60 }}
             >
               <CartesianGrid {...CHART_STYLES.grid} />
               <XAxis
@@ -2225,20 +2373,23 @@ export default function Dashboard() {
                       <g>
                         <text
                           x={x + width / 2}
-                          y={y - 18}
-                          fill="#333"
+                          y={y - 22}
+                          fill="#1a1a1a"
                           textAnchor="middle"
-                          fontSize={10}
+                          fontSize={13}
                           fontWeight="bold"
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
                         >
                           {formatCurrency(value, true)}
                         </text>
                         <text
                           x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
+                          y={y - 6}
+                          fill="#424046"
                           textAnchor="middle"
-                          fontSize={9}
+                          fontSize={11}
                         >
                           ({percentage}%)
                         </text>
@@ -2266,20 +2417,23 @@ export default function Dashboard() {
                       <g>
                         <text
                           x={x + width / 2}
-                          y={y - 18}
-                          fill="#333"
+                          y={y - 22}
+                          fill="#1a1a1a"
                           textAnchor="middle"
-                          fontSize={10}
+                          fontSize={13}
                           fontWeight="bold"
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
                         >
                           {formatCurrency(value, true)}
                         </text>
                         <text
                           x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
+                          y={y - 6}
+                          fill="#424046"
                           textAnchor="middle"
-                          fontSize={9}
+                          fontSize={11}
                         >
                           ({percentage}%)
                         </text>
@@ -2307,20 +2461,23 @@ export default function Dashboard() {
                       <g>
                         <text
                           x={x + width / 2}
-                          y={y - 18}
-                          fill="#333"
+                          y={y - 22}
+                          fill="#1a1a1a"
                           textAnchor="middle"
-                          fontSize={10}
+                          fontSize={13}
                           fontWeight="bold"
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
                         >
                           {formatCurrency(value, true)}
                         </text>
                         <text
                           x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
+                          y={y - 6}
+                          fill="#424046"
                           textAnchor="middle"
-                          fontSize={9}
+                          fontSize={11}
                         >
                           ({percentage}%)
                         </text>
@@ -2348,20 +2505,23 @@ export default function Dashboard() {
                       <g>
                         <text
                           x={x + width / 2}
-                          y={y - 18}
-                          fill="#333"
+                          y={y - 22}
+                          fill="#1a1a1a"
                           textAnchor="middle"
-                          fontSize={10}
+                          fontSize={13}
                           fontWeight="bold"
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
                         >
                           {formatCurrency(value, true)}
                         </text>
                         <text
                           x={x + width / 2}
-                          y={y - 5}
-                          fill="#666"
+                          y={y - 6}
+                          fill="#424046"
                           textAnchor="middle"
-                          fontSize={9}
+                          fontSize={11}
                         >
                           ({percentage}%)
                         </text>
@@ -3087,18 +3247,40 @@ export default function Dashboard() {
             ? secondPeriodMetrics.topExpenses
             : metrics?.topExpenses;
 
+          const comparisonGridData = comparisonMode && firstPeriodMetrics
+            ? firstPeriodMetrics.topExpenses
+            : undefined;
+
+          // Debug: log which period is which
+          if (comparisonMode) {
+            console.log('[Period Assignment]:', {
+              firstPeriod: firstPeriod,
+              secondPeriod: secondPeriod,
+              gridDataPeriod: 'Period 2 (Current/Recent)',
+              comparisonDataPeriod: 'Period 1 (Baseline/Older)',
+              gridDataCount: gridData?.length,
+              comparisonDataCount: comparisonGridData?.length
+            });
+          }
+
           console.log('[Dashboard] Data Grid section:', {
             hasMetrics: !!metrics,
             hasTopExpenses: !!gridData,
             topExpensesLength: gridData?.length || 0,
             firstItem: gridData?.[0],
-            willRenderGrid: gridData && gridData.length > 0
+            willRenderGrid: gridData && gridData.length > 0,
+            comparisonMode,
+            hasComparisonData: !!comparisonGridData
           });
 
           if (gridData && gridData.length > 0) {
             return (
               <>
-                <EnterpriseDataGrid data={gridData} />
+                <EnterpriseDataGrid
+                  data={gridData}
+                  comparisonData={comparisonGridData}
+                  showGrowth={comparisonMode && !!comparisonGridData}
+                />
               </>
             );
           } else {

@@ -28,17 +28,31 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-[1920px] mx-auto px-6 sm:px-8 lg:px-10 xl:px-12">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold gradient-text">PROCEED</h1>
+                {/* Proceed Logo on the left */}
+                <img
+                  src="/assets/proceed-logo.png"
+                  alt="Proceed"
+                  className="h-14 object-contain"
+                />
               </div>
-              <div className="ml-4 text-sm text-gray-500">
-                Cost Dashboard - TCO Analytics
+              <div className="ml-6">
+                <h1 className="text-lg font-semibold text-gray-900">Cost Dashboard</h1>
+                <p className="text-sm text-gray-500">Total Cost of Ownership Analytics</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">From Theory to Action</span>
+            <div className="flex items-center space-x-6">
+              {/* DMSCO Logo (Parent Company) */}
+              <div className="flex flex-col items-center">
+                <img
+                  src="/assets/dmsco-logo.png"
+                  alt="DMSCO"
+                  className="h-12 object-contain"
+                />
+                <span className="text-[10px] text-gray-400 mt-1">Parent Company</span>
+              </div>
               <button className="p-2 text-gray-500 hover:text-gray-700">
                 <Settings className="h-5 w-5" />
               </button>

@@ -47,11 +47,14 @@ export function uploadRoutes(upload: any): Router {
       const db = new DatabaseManager();
       await db.initialize({});
 
-      // Clear existing data (optional - based on your requirements)
-      const clearOnUpload = req.body?.clearExisting === 'true';
-      if (clearOnUpload) {
-        await db.clearAllData();
+      // ALWAYS clear existing data before uploading new data to prevent duplicates
+      console.log('Clearing existing data before upload...');
+      const clearResult = await db.clearAllData();
+      if (!clearResult.success) {
+        console.error('Failed to clear existing data:', clearResult.error);
+        return res.status(500).json({ error: 'Failed to clear existing data before upload' });
       }
+      console.log('Existing data cleared successfully');
 
       const saveResult = await processor.saveToDatabase(db);
       if (!saveResult.success) {
