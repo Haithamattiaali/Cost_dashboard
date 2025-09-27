@@ -80,6 +80,29 @@ const getBrandColor = (index: number): string => {
   return BRAND_PALETTE[index % BRAND_PALETTE.length];
 };
 
+// Extended color palette for Others breakdown
+const OTHERS_PALETTE = [
+  '#8B7355', // Tan
+  '#708090', // Slate Gray
+  '#CD853F', // Peru
+  '#BC8F8F', // Rosy Brown
+  '#D2691E', // Chocolate
+  '#A0522D', // Sienna
+  '#8B4513', // Saddle Brown
+  '#696969', // Dim Gray
+  '#778899', // Light Slate Gray
+  '#B8860B', // Dark Goldenrod
+  '#DAA520', // Goldenrod
+  '#CD5C5C', // Indian Red
+  '#F4A460', // Sandy Brown
+  '#DEB887', // Burlywood
+  '#D2B48C', // Tan
+];
+
+const getOthersColor = (index: number): string => {
+  return OTHERS_PALETTE[index % OTHERS_PALETTE.length];
+};
+
 // Global enhanced bar chart label configuration
 const LABEL_CONFIG = {
   // Minimum value to show label (prevents overlapping on small bars)
@@ -722,7 +745,7 @@ export default function Dashboard() {
     })[0];
   }
 
-  // Debug logging for CAPEX issue
+  // Debug logging for CAPEX issue - ALL hooks must be here before any early returns!
   React.useEffect(() => {
     if (metrics) {
       console.log("Dashboard Metrics Debug:", {
@@ -751,41 +774,44 @@ export default function Dashboard() {
     });
   }, [isLoading, error, metrics]);
 
-  // Get all GL Account data and prepare top 15 + Others
-  const allGLAccounts = mode === 'comparison' && secondPeriodMetrics
-    ? secondPeriodMetrics.costByGLAccount || []
-    : metrics?.costByGLAccount || [];
-  const totalAllGLCost = allGLAccounts.reduce(
-    (sum, item) => sum + item.totalCost,
-    0,
-  );
-
-  // Get top 15 GL accounts
-  const top15GLAccounts = allGLAccounts.slice(0, 15).map((item: any) => ({
-    name: item.value,
-    totalCost: item.totalCost,
-  }));
-
-  // Calculate "Others" category (all GL accounts beyond top 15)
-  const othersTotal = allGLAccounts
-    .slice(15)
-    .reduce((sum, item) => sum + item.totalCost, 0);
-
-  // Combine top 15 with "Others" category
-  const costByGLAccount = [
-    ...top15GLAccounts,
-    ...(othersTotal > 0
-      ? [
-          {
-            name: "Others",
-            totalCost: othersTotal,
-          },
-        ]
-      : []),
-  ];
-
-  // Log validation for percentage sum
+  // Log validation for GL Account percentages
+  // Note: We need to compute the data inside the effect since it depends on metrics
   React.useEffect(() => {
+    if (!metrics) return;
+
+    // Get all GL Account data and prepare top 15 + Others
+    const allGLAccounts = mode === 'comparison' && secondPeriodMetrics
+      ? secondPeriodMetrics.costByGLAccount || []
+      : metrics?.costByGLAccount || [];
+
+    const totalAllGLCost = allGLAccounts.reduce(
+      (sum: number, item: any) => sum + item.totalCost,
+      0,
+    );
+
+    // Get top 15 GL accounts
+    const top15GLAccounts = allGLAccounts.slice(0, 15).map((item: any) => ({
+      name: item.value,
+      totalCost: item.totalCost,
+    }));
+
+    // Calculate "Others" category (all GL accounts beyond top 15)
+    const othersGLAccounts = allGLAccounts.slice(15);
+    const othersTotal = othersGLAccounts.reduce((sum: number, item: any) => sum + item.totalCost, 0);
+
+    // Combine top 15 with "Others" category
+    const costByGLAccount = [
+      ...top15GLAccounts,
+      ...(othersTotal > 0
+        ? [
+            {
+              name: "Others",
+              totalCost: othersTotal,
+            },
+          ]
+        : []),
+    ];
+
     if (costByGLAccount.length > 0) {
       const percentageSum = costByGLAccount.reduce((sum, item) => {
         const percentage =
@@ -805,7 +831,8 @@ export default function Dashboard() {
         validation: Math.abs(percentageSum - 100) < 0.01 ? "PASS ✓" : "FAIL ✗",
       });
     }
-  }, [costByGLAccount, totalAllGLCost, allGLAccounts.length]);
+  }, [metrics, mode, secondPeriodMetrics])
+
 
   if (isLoading) {
     return (
@@ -827,13 +854,56 @@ export default function Dashboard() {
     totalCost,
     totalOpex,
     totalCapex,
-    dmascoTotal,
+    dmscoTotal,
     proceed3PLTotal,
     costByQuarter,
     costByWarehouse,
     costByCategory,
     topExpenses,
   } = metrics || {};
+
+  // Get all GL Account data and prepare top 15 + Others
+  const allGLAccounts = mode === 'comparison' && secondPeriodMetrics
+    ? secondPeriodMetrics.costByGLAccount || []
+    : metrics?.costByGLAccount || [];
+  const totalAllGLCost = allGLAccounts.reduce(
+    (sum, item) => sum + item.totalCost,
+    0,
+  );
+
+  // Get top 15 GL accounts
+  const top15GLAccounts = allGLAccounts.slice(0, 15).map((item: any) => ({
+    name: item.value,
+    totalCost: item.totalCost,
+  }));
+
+  // Calculate "Others" category (all GL accounts beyond top 15)
+  const othersGLAccounts = allGLAccounts.slice(15);
+  const othersTotal = othersGLAccounts.reduce((sum, item) => sum + item.totalCost, 0);
+
+  // Store the breakdown of Others for use in chart
+  const othersBreakdown = othersGLAccounts.map(item => ({
+    name: item.value,
+    totalCost: item.totalCost,
+    average: item.totalCost / (costByQuarter?.length || 1)
+  }));
+
+  // Combine top 15 with "Others" category
+  const costByGLAccount = [
+    ...top15GLAccounts,
+    ...(othersTotal > 0
+      ? [
+          {
+            name: "Others",
+            totalCost: othersTotal,
+            isOthers: true,
+            breakdown: othersBreakdown
+          },
+        ]
+      : []),
+  ];
+
+  // Note: GL Account percentage validation has been moved to the hooks section above to comply with React's Rules of Hooks
 
   return (
     <div className="space-y-6">
@@ -1020,23 +1090,23 @@ export default function Dashboard() {
           ) : `${formatPercentage((totalCapex || 0) / (totalCost || 1))} of total`}
         />
         <MetricCard
-          title="DMASCO Operations"
+          title="DMSCO Operations"
           value={formatCurrency(
             mode === 'comparison' && secondPeriodMetrics
-              ? secondPeriodMetrics.dmascoTotal || 0
-              : dmascoTotal || 0
+              ? secondPeriodMetrics.dmscoTotal || 0
+              : dmscoTotal || 0
           )}
           icon={<Building2 className="h-5 w-5" />}
           color="secondary"
           subtitle={mode === 'comparison' && firstPeriodMetrics && secondPeriodMetrics ? (
             <span className={`font-semibold ${
-              calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0
+              calculateGrowth(firstPeriodMetrics.dmscoTotal, secondPeriodMetrics.dmscoTotal) >= 0
                 ? 'text-red-600'
                 : 'text-green-600'
             }`}>
-              {calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal) >= 0 ? '↑' : '↓'}
-              {Math.abs(calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)).toFixed(1)}%
-              {` (${fmtShort(secondPeriodMetrics.dmascoTotal - firstPeriodMetrics.dmascoTotal)}) vs Period 1`}
+              {calculateGrowth(firstPeriodMetrics.dmscoTotal, secondPeriodMetrics.dmscoTotal) >= 0 ? '↑' : '↓'}
+              {Math.abs(calculateGrowth(firstPeriodMetrics.dmscoTotal, secondPeriodMetrics.dmscoTotal)).toFixed(1)}%
+              {` (${fmtShort(secondPeriodMetrics.dmscoTotal - firstPeriodMetrics.dmscoTotal)}) vs Period 1`}
             </span>
           ) : "Pharmacy, Dist, LM"}
         />
@@ -1702,7 +1772,7 @@ export default function Dashboard() {
             ) : (
               !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
-                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                  ({(!filters.quarter || filters.quarter === '') ? 'All Quarters' : (getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter')})
                 </span>
               )
             )}
@@ -2050,11 +2120,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Damasco vs PROCEED 3BL Comparison - Two column layout */}
+      {/* Dmsco vs PROCEED 3BL Comparison - Two column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="chart-container">
           <h3 className="text-lg font-semibold mb-4">
-            Damasco Operations vs PROCEED 3PL
+            Dmsco Operations vs PROCEED 3PL
             {mode === 'comparison' ? (
               <span className="text-sm font-normal ml-3 text-gray-600">
                 (Comparison: {firstPeriod?.quarter} vs {secondPeriod?.quarter})
@@ -2062,7 +2132,7 @@ export default function Dashboard() {
             ) : (
               !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
-                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                  ({(!filters.quarter || filters.quarter === '') ? 'All Quarters' : (getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter')})
                 </span>
               )
             )}
@@ -2074,10 +2144,10 @@ export default function Dashboard() {
                 (() => {
                   const comparisonData = [
                     {
-                      name: "Damasco Operations",
-                      period1: firstPeriodMetrics.dmascoTotal || 0,
-                      period2: secondPeriodMetrics.dmascoTotal || 0,
-                      growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
+                      name: "Dmsco Operations",
+                      period1: firstPeriodMetrics.dmscoTotal || 0,
+                      period2: secondPeriodMetrics.dmscoTotal || 0,
+                      growth: calculateGrowth(firstPeriodMetrics.dmscoTotal, secondPeriodMetrics.dmscoTotal)
                     },
                     {
                       name: "PROCEED 3PL",
@@ -2088,13 +2158,17 @@ export default function Dashboard() {
                   ];
                   return comparisonData;
                 })() :
-                // Normal mode - use only most recent quarter
+                // Normal mode - check if we should aggregate all quarters or use most recent
                 (() => {
                   const dataSource = costByQuarter;
 
-                  // In normal mode, only use the most recent quarter
-                  const recentQuarter = getMostRecentQuarter(dataSource);
-                  const quartersToProcess = recentQuarter ? [recentQuarter] : [];
+                  // Check if "all quarters" is selected (no quarter filter or empty quarter)
+                  const isAllQuarters = !filters.quarter || filters.quarter === '';
+
+                  // If all quarters, use all data; otherwise use most recent quarter
+                  const quartersToProcess = isAllQuarters
+                    ? dataSource
+                    : (getMostRecentQuarter(dataSource) ? [getMostRecentQuarter(dataSource)] : []);
 
                 const pharmaciesTotal =
                   quartersToProcess?.reduce(
@@ -2111,7 +2185,7 @@ export default function Dashboard() {
                     (sum, q) => sum + (q.lastMileCost || 0),
                     0,
                   ) || 0;
-                const damascoTotal =
+                const dmscoTotal =
                   pharmaciesTotal + distributionTotal + lastMileTotal;
 
                 const proceed3PLWHTotal =
@@ -2128,8 +2202,8 @@ export default function Dashboard() {
 
                 return [
                   {
-                    name: "Damasco Operations",
-                    total: damascoTotal,
+                    name: "Dmsco Operations",
+                    total: dmscoTotal,
                     pharmacies: pharmaciesTotal,
                     distribution: distributionTotal,
                     lastMile: lastMileTotal,
@@ -2182,7 +2256,7 @@ export default function Dashboard() {
                         <p style={{ fontSize: "14px", marginBottom: "8px" }}>
                           Total: {formatCurrency(data.total)}
                         </p>
-                        {data.name === "Damasco Operations" ? (
+                        {data.name === "Dmsco Operations" ? (
                           <>
                             <p style={{ fontSize: "12px" }}>
                               Pharmacies: {formatCurrency(data.pharmacies)}
@@ -2253,10 +2327,10 @@ export default function Dashboard() {
                         // Get the full data object using the index
                         const chartData = [
                           {
-                            name: "Damasco Operations",
-                            period1: firstPeriodMetrics.dmascoTotal || 0,
-                            period2: secondPeriodMetrics.dmascoTotal || 0,
-                            growth: calculateGrowth(firstPeriodMetrics.dmascoTotal, secondPeriodMetrics.dmascoTotal)
+                            name: "Dmsco Operations",
+                            period1: firstPeriodMetrics.dmscoTotal || 0,
+                            period2: secondPeriodMetrics.dmscoTotal || 0,
+                            growth: calculateGrowth(firstPeriodMetrics.dmscoTotal, secondPeriodMetrics.dmscoTotal)
                           },
                           {
                             name: "PROCEED 3PL",
@@ -2334,7 +2408,7 @@ export default function Dashboard() {
                         (sum, q) => sum + (q.lastMileCost || 0),
                         0,
                       ) || 0;
-                    const damascoTotal =
+                    const dmscoTotal =
                       pharmaciesTotal + distributionTotal + lastMileTotal;
                     const proceed3PLTotal =
                       costByQuarter?.reduce(
@@ -2344,7 +2418,7 @@ export default function Dashboard() {
                           (q.proceed3PLTRSCost || 0),
                         0,
                       ) || 0;
-                    const grandTotal = damascoTotal + proceed3PLTotal;
+                    const grandTotal = dmscoTotal + proceed3PLTotal;
                     const percentage =
                       grandTotal > 0
                         ? ((value / grandTotal) * 100).toFixed(1)
@@ -2363,7 +2437,7 @@ export default function Dashboard() {
               <Legend
                 wrapperStyle={CHART_STYLES.legend.wrapperStyle}
                 payload={[
-                  { value: 'Damasco Operations', type: 'rect', color: PROCEED_COLORS.darkRed },
+                  { value: 'Dmsco Operations', type: 'rect', color: PROCEED_COLORS.darkRed },
                   { value: 'PROCEED 3PL', type: 'rect', color: PROCEED_COLORS.blue }
                 ]}
               />
@@ -2382,7 +2456,7 @@ export default function Dashboard() {
             ) : (
               !mode === 'comparison' && costByQuarter?.length > 0 && (
                 <span className="text-sm font-normal ml-3 text-gray-600">
-                  ({getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter'})
+                  ({(!filters.quarter || filters.quarter === '') ? 'All Quarters' : (getMostRecentQuarter(costByQuarter)?.value?.toUpperCase() || 'Latest Quarter')})
                 </span>
               )
             )}
@@ -2429,23 +2503,44 @@ export default function Dashboard() {
                     )
                   }
                 ]
-                : // Normal mode - show only most recent quarter
+                : // Normal mode - check if we should aggregate all quarters or use most recent
                 (() => {
                   if (!costByQuarter || costByQuarter.length === 0) {
                     return []; // No data available
                   }
-                  const recentQ = getMostRecentQuarter(costByQuarter);
-                  if (!recentQ || !recentQ.value) {
-                    // Fallback if no valid quarter found
-                    return [];
+
+                  // Check if "all quarters" is selected (no quarter filter or empty quarter)
+                  const isAllQuarters = !filters.quarter || filters.quarter === '';
+
+                  if (isAllQuarters) {
+                    // Aggregate all quarters into a single data point
+                    const totalPharmacies = costByQuarter.reduce((sum, q) => sum + (q.pharmaciesCost || 0), 0);
+                    const totalDistribution = costByQuarter.reduce((sum, q) => sum + (q.distributionCost || 0), 0);
+                    const totalLastMile = costByQuarter.reduce((sum, q) => sum + (q.lastMileCost || 0), 0);
+                    const totalProceed3PL = costByQuarter.reduce((sum, q) => sum + (q.proceed3PLWHCost || 0) + (q.proceed3PLTRSCost || 0), 0);
+
+                    return [{
+                      quarter: "All Quarters",
+                      Pharmacies: totalPharmacies,
+                      Distribution: totalDistribution,
+                      "Last Mile": totalLastMile,
+                      "PROCEED 3PL": totalProceed3PL,
+                    }];
+                  } else {
+                    // Show only the most recent quarter
+                    const recentQ = getMostRecentQuarter(costByQuarter);
+                    if (!recentQ || !recentQ.value) {
+                      // Fallback if no valid quarter found
+                      return [];
+                    }
+                    return [{
+                      quarter: String(recentQ.value).toUpperCase(),
+                      Pharmacies: recentQ.pharmaciesCost || 0,
+                      Distribution: recentQ.distributionCost || 0,
+                      "Last Mile": recentQ.lastMileCost || 0,
+                      "PROCEED 3PL": (recentQ.proceed3PLWHCost || 0) + (recentQ.proceed3PLTRSCost || 0),
+                    }];
                   }
-                  return [{
-                    quarter: String(recentQ.value).toUpperCase(),
-                    Pharmacies: recentQ.pharmaciesCost || 0,
-                    Distribution: recentQ.distributionCost || 0,
-                    "Last Mile": recentQ.lastMileCost || 0,
-                    "PROCEED 3PL": (recentQ.proceed3PLWHCost || 0) + (recentQ.proceed3PLTRSCost || 0),
-                  }];
                 })()
               }
               margin={{ top: 60, right: 30, left: 20, bottom: 60 }}
@@ -3800,28 +3895,236 @@ export default function Dashboard() {
                 width={90}
               />
               <Tooltip
-                formatter={(value) => formatCurrency(value as number)}
-                contentStyle={CHART_STYLES.tooltip.contentStyle}
-                labelStyle={CHART_STYLES.tooltip.labelStyle}
+                content={(props) => {
+                  const { active, payload, label } = props;
+                  if (active && payload && payload.length && label === "Others") {
+                    const data = payload[0].payload;
+                    if (data.isOthers && data.breakdown) {
+                      const totalPercentage = (data.totalCost / totalAllGLCost * 100).toFixed(1);
+                      return (
+                        <div style={{
+                          ...CHART_STYLES.tooltip.contentStyle,
+                          padding: '12px',
+                          maxHeight: '450px',
+                          overflowY: 'auto',
+                          minWidth: '350px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}>
+                          <div style={{
+                            fontWeight: 'bold',
+                            marginBottom: '10px',
+                            borderBottom: '2px solid #9e1f63',
+                            paddingBottom: '6px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <span>Others - {data.breakdown.length} GL Accounts</span>
+                            <span style={{ color: '#9e1f63' }}>{totalPercentage}%</span>
+                          </div>
+                          <div style={{ marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
+                            Total: {formatCurrency(data.totalCost)}
+                          </div>
+                          <div style={{ fontSize: '12px' }}>
+                            <div style={{ marginBottom: '6px', fontSize: '11px', color: '#666', fontStyle: 'italic' }}>
+                              Individual GL Accounts:
+                            </div>
+                            {data.breakdown.map((item: any, idx: number) => {
+                              const itemPercentage = ((item.totalCost / data.totalCost) * 100).toFixed(1);
+                              return (
+                                <div key={idx} style={{
+                                  marginBottom: '6px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '4px 0',
+                                  borderBottom: idx < data.breakdown.length - 1 ? '1px solid #f0f0f0' : 'none'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                    <div style={{
+                                      width: '14px',
+                                      height: '14px',
+                                      backgroundColor: getOthersColor(idx),
+                                      marginRight: '8px',
+                                      borderRadius: '2px',
+                                      border: '1px solid rgba(0,0,0,0.1)'
+                                    }} />
+                                    <span style={{
+                                      marginRight: '10px',
+                                      maxWidth: '180px',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }} title={item.name}>
+                                      {item.name}
+                                    </span>
+                                  </div>
+                                  <div style={{ textAlign: 'right', minWidth: '100px' }}>
+                                    <div style={{ fontWeight: '500' }}>{formatCurrency(item.totalCost, true)}</div>
+                                    <div style={{ fontSize: '10px', color: '#888' }}>
+                                      {itemPercentage}% of Others
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div style={{
+                            marginTop: '10px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid #e0e0e0',
+                            fontSize: '11px',
+                            color: '#666'
+                          }}>
+                            <div>Quarter Average: {formatCurrency(data.totalCost / (costByQuarter?.length || 1), true)}</div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  }
+                  // Default tooltip for non-Others bars
+                  if (active && payload && payload.length) {
+                    const percentage = ((payload[0].value as number / totalAllGLCost) * 100).toFixed(1);
+                    return (
+                      <div style={CHART_STYLES.tooltip.contentStyle}>
+                        <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>{label}</p>
+                        <p>Total Cost: {formatCurrency(payload[0].value as number)}</p>
+                        <p style={{ fontSize: '12px', color: '#666' }}>({percentage}% of total)</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
-              <Bar dataKey="totalCost" name="Total Cost">
+              <Bar dataKey="totalCost" name="Total Cost" shape={(props: any) => {
+                const { x, y, width, height, payload } = props;
+
+                // Check if this is the "Others" bar
+                if (payload.isOthers && payload.breakdown) {
+                  // Calculate segment heights
+                  const segments = payload.breakdown.map((item: any, idx: number) => {
+                    const segmentHeight = (item.totalCost / payload.totalCost) * height;
+                    return {
+                      ...item,
+                      height: segmentHeight,
+                      color: getOthersColor(idx)
+                    };
+                  });
+
+                  // Render stacked segments
+                  let currentY = y;
+                  return (
+                    <g>
+                      {/* Add a subtle border around the entire Others bar */}
+                      <rect
+                        x={x}
+                        y={y}
+                        width={width}
+                        height={height}
+                        fill="none"
+                        stroke="#666"
+                        strokeWidth={1}
+                        strokeDasharray="2,2"
+                        opacity={0.3}
+                      />
+                      {segments.map((segment: any, idx: number) => {
+                        const segmentElement = (
+                          <g key={idx}>
+                            <rect
+                              x={x}
+                              y={currentY}
+                              width={width}
+                              height={segment.height}
+                              fill={segment.color}
+                              stroke="white"
+                              strokeWidth={1}
+                              opacity={0.9}
+                            />
+                            {/* Add text label for larger segments */}
+                            {segment.height > 15 && (
+                              <text
+                                x={x + width / 2}
+                                y={currentY + segment.height / 2}
+                                fill="white"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fontSize={9}
+                                fontWeight={600}
+                                style={{ pointerEvents: 'none' }}
+                              >
+                                {((segment.totalCost / payload.totalCost) * 100).toFixed(0)}%
+                              </text>
+                            )}
+                          </g>
+                        );
+                        currentY += segment.height;
+                        return segmentElement;
+                      })}
+                    </g>
+                  );
+                }
+
+                // Regular bar for non-Others entries
+                const index = costByGLAccount.findIndex(item => item.name === payload.name);
+                return (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    fill={getBrandColor(index)}
+                  />
+                );
+              }}>
               <LabelList
                 position="top"
                 content={(props) => {
+                  const { x, y, width, value, index } = props;
+                  const entry = costByGLAccount[index];
+
+                  // Special label for Others showing count
+                  if (entry?.isOthers && entry?.breakdown) {
+                    return (
+                      <g>
+                        <text
+                          x={x + width / 2}
+                          y={y - 20}
+                          fill="#1a1a1a"
+                          textAnchor="middle"
+                          stroke="white"
+                          strokeWidth={3}
+                          paintOrder="stroke"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 12,
+                            fontFamily: LABEL_CONFIG.fonts.value,
+                            letterSpacing: '-0.02em'
+                          }}
+                        >
+                          {formatCurrency(value as number, true)}
+                        </text>
+                        <text
+                          x={x + width / 2}
+                          y={y - 8}
+                          fill="#666"
+                          textAnchor="middle"
+                          style={{
+                            fontSize: 10,
+                            fontFamily: LABEL_CONFIG.fonts.percentage
+                          }}
+                        >
+                          ({entry.breakdown.length} accounts)
+                        </text>
+                      </g>
+                    );
+                  }
+
                   return renderBarLabel(props, {
                     showPercentage: true,
                     percentageTotal: totalAllGLCost
                   });
                 }}
               />
-              {costByGLAccount.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={
-                    entry.name === "Others" ? "#808080" : getBrandColor(index)
-                  }
-                />
-              ))}
             </Bar>
           </BarChart>
           )}

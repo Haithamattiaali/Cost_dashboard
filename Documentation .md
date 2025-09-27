@@ -53,7 +53,7 @@ Follow the dashboard sdk+ adding compare mode and brand dna in the following fol
 5-as a user I need to be able to see cost breakdown  by quarter and very important for dashboard to have comparison feature between each quarter 
 6-as a user I need to be able to see cost breakdown By bossiness units : warehouses , transportation with an ability to compare the same parameters (warehouses , transportation) alongside different periods either quarters or years this could be  head to head chart alongside difference analysis .
 7-as a user I need to be able to see cost breakdown By by warehouse
-8-as a user I need to be able to see cost breakdown By DMASCO (pharmacies ,distribution,last-mile ) ,PROCEED 3pl (proceed 3pl trans , proceed 3pl wh)
+8-as a user I need to be able to see cost breakdown By DMSCO (pharmacies ,distribution,last-mile ) ,PROCEED 3pl (proceed 3pl trans , proceed 3pl wh)
 9-as a user I need to be able to see cost breakdown By TCO Model category. 
 
 

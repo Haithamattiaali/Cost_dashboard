@@ -72,7 +72,7 @@ SQLite database at `data/costs.db` with main `costs` table containing:
 - Period data: year, quarter, warehouse
 - GL accounts: glAccountNo, glAccountName, glAccountsGroup
 - Cost categories: type, costType, tcoModelCategories, opexCapex
-- Division allocations: shareDmasco, shareProceed3PL, etc.
+- Division allocations: shareDmsco, shareProceed3PL, etc.
 
 ### State Management
 - **React Query** for server state and caching
@@ -123,5 +123,5 @@ Required columns:
 - GL Account No, GL Account Name, GL Accounts Group
 - Cost Type, TCO Model Categories, Opex/Capex
 - Total Incurred Cost (GL account value)
-- Share percentages: Share Dmasco (%), Share PROCEED 3PL (%), etc.
-- Value calculations: Value Dmasco, Value PROCEED 3PL, etc.
+- Share percentages: Share Dmsco (%), Share PROCEED 3PL (%), etc.
+- Value calculations: Value Dmsco, Value PROCEED 3PL, etc.

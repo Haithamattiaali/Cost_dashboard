@@ -31,7 +31,7 @@ export interface DashboardMetrics {
   totalCost: number;
   totalOpex: number;
   totalCapex: number;
-  dmascoTotal: number;
+  dmscoTotal: number;
   proceed3PLTotal: number;
   costByQuarter: AggregatedCost[];
   costByWarehouse: AggregatedCost[];
@@ -128,8 +128,8 @@ export class CostTransformer {
       .filter(row => row.opexCapex?.toUpperCase() === 'CAPEX')
       .reduce((sum, row) => sum + row.totalIncurredCost, 0);
 
-    // Damasco Total = Pharmacies + Distribution + Last Mile
-    const dmascoTotal = this.data.reduce(
+    // Dmsco Total = Pharmacies + Distribution + Last Mile
+    const dmscoTotal = this.data.reduce(
       (sum, row) => sum + row.totalPharmacyDistLM + row.valueDistribution + row.valueLastMile,
       0
     );
@@ -149,7 +149,7 @@ export class CostTransformer {
       totalCost,
       totalOpex,
       totalCapex,
-      dmascoTotal,
+      dmscoTotal,
       proceed3PLTotal,
       costByQuarter: this.aggregateByQuarter(),
       costByWarehouse: this.aggregateByDimension('warehouse').slice(0, 10),

@@ -158,7 +158,7 @@ export async function compareYearOverYear(currentYear: number, previousYear?: nu
       totalCost: calculateDelta(currentMetrics.totalCost, previousMetrics.totalCost),
       totalOpex: calculateDelta(currentMetrics.totalOpex, previousMetrics.totalOpex),
       totalCapex: calculateDelta(currentMetrics.totalCapex, previousMetrics.totalCapex),
-      dmascoTotal: calculateDelta(currentMetrics.dmascoTotal, previousMetrics.dmascoTotal),
+      dmscoTotal: calculateDelta(currentMetrics.dmscoTotal, previousMetrics.dmscoTotal),
       proceed3PLTotal: calculateDelta(currentMetrics.proceed3PLTotal, previousMetrics.proceed3PLTotal),
     }
   };

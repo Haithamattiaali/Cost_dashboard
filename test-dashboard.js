@@ -33,7 +33,7 @@ async function testDashboard() {
       console.log('- warehouse:', firstRow.warehouse);
       console.log('- totalIncurredCostGlAccountValue:', firstRow.totalIncurredCostGlAccountValue);
       console.log('- opexCapex:', firstRow.opexCapex);
-      console.log('- valueDmasco:', firstRow.valueDmasco);
+      console.log('- valueDmsco:', firstRow.valueDmsco);
       console.log('- valueProceed3PL:', firstRow.valueProceed3PL);
       console.log('- pharmaciesCost:', firstRow.pharmaciesCost);
       console.log('- distributionCost:', firstRow.distributionCost);

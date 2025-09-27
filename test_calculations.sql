@@ -1,7 +1,7 @@
 -- Test calculations for department costs
 -- According to user formulas:
 -- PHs COST VALUE = total_incurred_cost - (Dist + Last Mile + PROCEED 3PL)
--- DAMASCO = PHs + Dist + Last Mile
+-- DMSCO = PHs + Dist + Last Mile
 -- PROCEED 3PL = 3PL WH + 3PL TRS
 
 -- Get the raw values
@@ -27,26 +27,26 @@ SELECT
     printf('%.2f', SUM(value_distribution) + SUM(value_last_mile) + SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs)) as sum_of_others
 FROM cost_data;
 
--- Calculate DAMASCO (PHs + Dist + Last Mile)
+-- Calculate DMSCO (PHs + Dist + Last Mile)
 SELECT
     printf('%.2f',
         (SUM(total_incurred_cost) - (SUM(value_distribution) + SUM(value_last_mile) + SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs))) +
         SUM(value_distribution) +
         SUM(value_last_mile)
-    ) as damasco_total,
+    ) as dmsco_total,
     printf('%.2f', SUM(total_incurred_cost) - (SUM(value_distribution) + SUM(value_last_mile) + SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs))) as phs_component,
     printf('%.2f', SUM(value_distribution)) as dist_component,
     printf('%.2f', SUM(value_last_mile)) as last_mile_component
 FROM cost_data;
 
--- Verify the total equals sum of DAMASCO + PROCEED 3PL
+-- Verify the total equals sum of DMSCO + PROCEED 3PL
 SELECT
     printf('%.2f', SUM(total_incurred_cost)) as total_incurred,
     printf('%.2f',
         (SUM(total_incurred_cost) - (SUM(value_distribution) + SUM(value_last_mile) + SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs))) +
         SUM(value_distribution) +
         SUM(value_last_mile)
-    ) as damasco,
+    ) as dmsco,
     printf('%.2f', SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs)) as proceed_3pl,
     printf('%.2f',
         (SUM(total_incurred_cost) - (SUM(value_distribution) + SUM(value_last_mile) + SUM(value_proceed_3pl_wh) + SUM(value_proceed_3pl_trs))) +

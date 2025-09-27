@@ -308,7 +308,8 @@ export class DatabaseManager {
         params.push(filters.year);
       }
 
-      if (filters.quarter) {
+      // Only apply quarter filter if it's not empty (empty means "all quarters")
+      if (filters.quarter && filters.quarter !== '') {
         query += ' AND quarter = ?';
         params.push(filters.quarter);
       }
@@ -336,11 +337,20 @@ export class DatabaseManager {
 
       query += ' ORDER BY year DESC, quarter DESC';
 
+      // Log the query for debugging
+      console.log('[DatabaseManager] getCostDataByFilters query:', {
+        query,
+        params,
+        quarterFilter: filters.quarter,
+        isAllQuarters: !filters.quarter || filters.quarter === ''
+      });
+
       this.db.all(query, params, (err, rows: any[]) => {
         if (err) {
           console.error('Error fetching filtered data:', err);
           resolve([]);
         } else {
+          console.log(`[DatabaseManager] getCostDataByFilters returned ${rows.length} rows`);
           resolve(rows.map(this.mapRowToModel));
         }
       });

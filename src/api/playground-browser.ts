@@ -77,8 +77,8 @@ export async function fetchPlaygroundData(
       case 'totalCost':
         value = row.totalIncurredCostGlAccountValue || 0;
         break;
-      case 'dmascoValue':
-        value = row.valueDmasco || 0;
+      case 'dmscoValue':
+        value = row.valueDmsco || 0;
         break;
       case 'proceed3PLValue':
         value = row.valueProceed3PL || 0;
@@ -156,8 +156,8 @@ export async function fetchMultiMeasureData(
           case 'totalCost':
             value = row.totalIncurredCostGlAccountValue || 0;
             break;
-          case 'dmascoValue':
-            value = row.valueDmasco || 0;
+          case 'dmscoValue':
+            value = row.valueDmsco || 0;
             break;
           case 'proceed3PLValue':
             value = row.valueProceed3PL || 0;
@@ -241,8 +241,8 @@ export async function fetchFilteredPlaygroundData(
       case 'totalCost':
         value = row.totalIncurredCostGlAccountValue || 0;
         break;
-      case 'dmascoValue':
-        value = row.valueDmasco || 0;
+      case 'dmscoValue':
+        value = row.valueDmsco || 0;
         break;
       case 'proceed3PLValue':
         value = row.valueProceed3PL || 0;
@@ -322,8 +322,8 @@ export async function fetchFilteredMultiMeasureData(
           case 'totalCost':
             value = row.totalIncurredCostGlAccountValue || 0;
             break;
-          case 'dmascoValue':
-            value = row.valueDmasco || 0;
+          case 'dmscoValue':
+            value = row.valueDmsco || 0;
             break;
           case 'proceed3PLValue':
             value = row.valueProceed3PL || 0;

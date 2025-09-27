@@ -65,7 +65,7 @@ async function testExcelParsing() {
     // 4. Check value columns
     console.log('\n=== Value Column Mapping ===');
     const hasValueColumns = {
-      valueDmasco: data.filter(r => r.valueDmasco > 0).length,
+      valueDmsco: data.filter(r => r.valueDmsco > 0).length,
       valueProceed3PL: data.filter(r => r.valueProceed3PL > 0).length,
       valueAlFaris: data.filter(r => r.valueAlFaris > 0).length,
       valueJaleel: data.filter(r => r.valueJaleel > 0).length,
@@ -146,7 +146,7 @@ async function testExcelParsing() {
         console.log('- pharmaciesCost → valueOthers (PHs COST VALUE)');
         console.log('- distributionCost → valueAlFaris (Dist. COST VALUE)');
         console.log('- lastMileCost → valueJaleel (Last Mile COST VALUE)');
-        console.log('- warehouseCost → valueDmasco (WH COST VALUE)');
+        console.log('- warehouseCost → valueDmsco (WH COST VALUE)');
       } else {
         console.log('❌ No value columns for fallback. Check Excel column names.');
       }

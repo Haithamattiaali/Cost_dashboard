@@ -16,12 +16,12 @@ export interface CostDataRow {
   tcoModelCategories: string;
   opexCapex: string;
   totalIncurredCostGlAccountValue: number;
-  shareDmasco: number;
+  shareDmsco: number;
   shareProceed3PL: number;
   shareAlFaris: number;
   shareJaleel: number;
   shareOthers: number;
-  valueDmasco: number;
+  valueDmsco: number;
   valueProceed3PL: number;
   valueAlFaris: number;
   valueJaleel: number;
@@ -184,6 +184,7 @@ class BrowserDatabase {
     if (allData.length > 0) {
       console.log('[BrowserDatabase] Sample row year type:', typeof allData[0].year, 'value:', allData[0].year);
       console.log('[BrowserDatabase] Filter year type:', typeof filters.year, 'value:', filters.year);
+      console.log('[BrowserDatabase] Is "All Quarters" selected?', !filters.quarter || filters.quarter === '');
     }
 
     const filteredData = allData.filter(row => {
@@ -197,7 +198,8 @@ class BrowserDatabase {
       }
 
       // Case-insensitive quarter comparison to handle Q1 vs q1 mismatches
-      if (filters.quarter) {
+      // Skip quarter filter if empty (which means "all quarters")
+      if (filters.quarter && filters.quarter !== '') {
         const filterQuarter = String(filters.quarter).toUpperCase().trim();
         const rowQuarter = String(row.quarter).toUpperCase().trim();
         if (filterQuarter !== rowQuarter) return false;
@@ -215,6 +217,17 @@ class BrowserDatabase {
     });
 
     console.log('[BrowserDatabase] Filtered result:', filteredData.length, 'rows from', allData.length, 'total');
+
+    // When "all quarters" is selected, show which quarters are included
+    if ((!filters.quarter || filters.quarter === '') && filteredData.length > 0) {
+      const quarterCounts = filteredData.reduce((acc, row) => {
+        const key = `${row.year} ${row.quarter}`;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('[BrowserDatabase] All quarters aggregation includes:', quarterCounts);
+    }
+
     if (filteredData.length === 0 && allData.length > 0) {
       console.warn('[BrowserDatabase] No data matched filters. Check type mismatches.');
     }

@@ -10,7 +10,7 @@ export interface DashboardMetrics {
   totalCost: number;
   totalOpex: number;
   totalCapex: number;
-  dmascoTotal: number;
+  dmscoTotal: number;
   proceed3PLTotal: number;
   costByQuarter: Array<any>;
   costByWarehouse: Array<{ warehouse: string; cost: number }>;
@@ -27,7 +27,7 @@ export interface ComparisonMetrics {
     totalCost: { value: number; percentage: number };
     totalOpex: { value: number; percentage: number };
     totalCapex: { value: number; percentage: number };
-    dmascoTotal: { value: number; percentage: number };
+    dmscoTotal: { value: number; percentage: number };
     proceed3PLTotal: { value: number; percentage: number };
   };
 }
@@ -243,13 +243,13 @@ class DataProcessor {
           getColumnValue(['total incured cost', 'Total Incurred Cost (GL account value)', 'Total Incurred Cost', 'Total Cost', 'Cost'], 0)
         ),
         // Map the COST SHARE columns (percentages)
-        shareDmasco: parsePercentage(getColumnValue(['WH COST SHARE ', 'WH COST SHARE', 'Share Dmasco (%)', 'Share Dmasco'], 0)),
+        shareDmsco: parsePercentage(getColumnValue(['WH COST SHARE ', 'WH COST SHARE', 'Share Dmsco (%)', 'Share Dmsco'], 0)),
         shareProceed3PL: parsePercentage(getColumnValue(['Proceed 3PL (WH) COST SHARE ', 'Proceed 3PL (TRS) COST SHARE ', 'Proceed 3PL COST SHARE', 'Share PROCEED 3PL (%)', 'Share PROCEED 3PL'], 0)),
         shareAlFaris: parsePercentage(getColumnValue(['Dist. COST SHARE ', 'Dist COST SHARE', 'Distribution COST SHARE', 'Share AlFaris (%)', 'Share AlFaris'], 0)),
         shareJaleel: parsePercentage(getColumnValue(['Last Mile (TRS) COST SHARE ', 'Last Mile COST SHARE', 'Share Jaleel (%)', 'Share Jaleel'], 0)),
         shareOthers: parsePercentage(getColumnValue(['TRS COST SHARE ', 'TRS COST SHARE', 'Transportation COST SHARE', 'Share Others (%)', 'Share Others'], 0)),
         // Map the COST VALUE columns (actual amounts)
-        valueDmasco: parseNumber(getColumnValue(['WH COST VALUE', 'WH COST VALUE ', 'Warehouse COST VALUE', 'Value Dmasco'], 0)),
+        valueDmsco: parseNumber(getColumnValue(['WH COST VALUE', 'WH COST VALUE ', 'Warehouse COST VALUE', 'Value Dmsco'], 0)),
         valueProceed3PL: parseNumber(getColumnValue(['PROCEED 3pl COST VALUE ', 'PROCEED 3PL COST VALUE', 'Proceed 3PL (WH) COST VALUE', 'Proceed 3PL (TRS) COST VALUE', 'Value PROCEED 3PL'], 0)),
         valueAlFaris: parseNumber(getColumnValue(['Dist. COST VALUE ', 'Dist COST VALUE', 'Distribution COST VALUE', 'Value AlFaris'], 0)),
         valueJaleel: parseNumber(getColumnValue(['Last Mile COST VALUE ', 'Last Mile COST VALUE', 'Last Mile (TRS) COST VALUE', 'Value Jaleel'], 0)),
@@ -301,7 +301,7 @@ class DataProcessor {
         totalCost: 0,
         totalOpex: 0,
         totalCapex: 0,
-        dmascoTotal: 0,
+        dmscoTotal: 0,
         proceed3PLTotal: 0,
         costByQuarter: [],
         costByWarehouse: [],
@@ -322,8 +322,8 @@ class DataProcessor {
       .reduce((sum, row) => sum + (row.totalIncurredCostGlAccountValue || 0), 0);
 
     // Division totals
-    // DMASCO Operations = Pharmacies + Distribution + Last Mile
-    const dmascoTotal = data.reduce((sum, row) => {
+    // DMSCO Operations = Pharmacies + Distribution + Last Mile
+    const dmscoTotal = data.reduce((sum, row) => {
       const pharmacies = row.pharmaciesCost || 0;
       const distribution = row.distributionCost || 0;
       const lastMile = row.lastMileCost || 0;
@@ -396,7 +396,7 @@ class DataProcessor {
         quarterData.warehouseCost += row.warehouseCost;
       } else {
         // Fallback to WH COST VALUE
-        quarterData.warehouseCost += row.valueDmasco || 0;
+        quarterData.warehouseCost += row.valueDmsco || 0;
       }
 
       if (row.transportationCost !== undefined) {
@@ -486,7 +486,7 @@ class DataProcessor {
       totalCost,
       totalOpex,
       totalCapex,
-      dmascoTotal,
+      dmscoTotal,
       proceed3PLTotal,
       costByQuarter,
       costByWarehouse,
@@ -505,7 +505,7 @@ class DataProcessor {
       pharmaciesTotal,
       distributionTotal,
       lastMileTotal,
-      dmascoTotal: dmascoTotal + ' (Ph+Dist+LM)',
+      dmscoTotal: dmscoTotal + ' (Ph+Dist+LM)',
       proceed3PLTotal
     });
 
@@ -513,7 +513,7 @@ class DataProcessor {
       totalCost,
       totalOpex,
       totalCapex,
-      dmascoTotal,
+      dmscoTotal,
       proceed3PLTotal,
       quarterCount: costByQuarter.length,
       warehouseCount: costByWarehouse.length,
@@ -574,7 +574,7 @@ class DataProcessor {
         totalCost: calculateDelta(current.totalCost, previous.totalCost),
         totalOpex: calculateDelta(current.totalOpex, previous.totalOpex),
         totalCapex: calculateDelta(current.totalCapex, previous.totalCapex),
-        dmascoTotal: calculateDelta(current.dmascoTotal, previous.dmascoTotal),
+        dmscoTotal: calculateDelta(current.dmscoTotal, previous.dmscoTotal),
         proceed3PLTotal: calculateDelta(current.proceed3PLTotal, previous.proceed3PLTotal),
       }
     };

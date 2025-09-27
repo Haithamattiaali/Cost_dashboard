@@ -79,7 +79,7 @@ Navigate to the **Upload Data** page to import your Excel file:
 ### 2. View Dashboard
 
 The main **Dashboard** page shows:
-- Key metrics (Total Cost, OPEX, CAPEX, DMASCO, PROCEED 3PL)
+- Key metrics (Total Cost, OPEX, CAPEX, DMSCO, PROCEED 3PL)
 - Cost trends by quarter
 - Cost distribution pie chart
 - Cost by warehouse and TCO categories
