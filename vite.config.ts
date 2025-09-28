@@ -4,6 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  publicDir: 'public',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -22,5 +23,17 @@ export default defineConfig({
   build: {
     outDir: 'dist/frontend',
     sourcemap: true,
+    copyPublicDir: true,
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          // Keep original names for image assets
+          if (assetInfo.name && /\.(png|jpg|jpeg|gif|svg)$/i.test(assetInfo.name)) {
+            return 'assets/[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        }
+      }
+    }
   },
 });

@@ -1,0 +1,52 @@
+# Netlify _headers file for additional CORS configuration
+
+# API proxy headers
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH
+  Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin
+  Access-Control-Max-Age: 86400
+  Access-Control-Allow-Credentials: true
+
+# Security headers for all routes
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Cache control for static assets
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: auto
+
+# Specific headers for images
+/assets/*.png
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/png
+
+/assets/*.jpg
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/jpeg
+
+/assets/*.jpeg
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/jpeg
+
+/assets/*.gif
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/gif
+
+/assets/*.svg
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: image/svg+xml
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

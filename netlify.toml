@@ -50,6 +50,30 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
+  for = "/assets/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "image/png"
+
+[[headers]]
+  for = "/assets/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "image/jpeg"
+
+[[headers]]
+  for = "/assets/*.gif"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "image/gif"
+
+[[headers]]
+  for = "/assets/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "image/svg+xml"
+
+[[headers]]
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
