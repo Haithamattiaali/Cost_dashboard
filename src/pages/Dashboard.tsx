@@ -530,6 +530,10 @@ export default function Dashboard() {
   // Get mode from store
   const { mode, setMode } = usePeriodStore();
 
+  // Others modal state
+  const [showOthersModal, setShowOthersModal] = useState(false);
+  const [othersModalData, setOthersModalData] = useState<any>(null);
+
   // Local state for comparison periods
   const [firstPeriod, setFirstPeriod] = useState<{ year: number; quarter: string } | null>(null);
   const [secondPeriod, setSecondPeriod] = useState<{ year: number; quarter: string } | null>(null);
@@ -3683,19 +3687,41 @@ export default function Dashboard() {
               </span>
             )}
           </h3>
-          <div className="text-sm text-gray-600">
-            <span className="mr-4">
-              <span className="font-medium">Total GLs:</span>{" "}
-              {allGLAccounts.length}
-            </span>
-            <span className="mr-4">
-              <span className="font-medium">Top 15 Displayed</span>
-            </span>
-            {othersTotal > 0 && (
-              <span>
-                <span className="font-medium">Others:</span>{" "}
-                {allGLAccounts.length - 15} GLs
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600">
+              <span className="mr-4">
+                <span className="font-medium">Total GLs:</span>{" "}
+                {allGLAccounts.length}
               </span>
+              <span className="mr-4">
+                <span className="font-medium">Top 15 Displayed</span>
+              </span>
+              {othersTotal > 0 && (
+                <span>
+                  <span className="font-medium">Others:</span>{" "}
+                  {allGLAccounts.length - 15} GLs
+                </span>
+              )}
+            </div>
+            {othersTotal > 0 && othersBreakdown.length > 0 && (
+              <button
+                onClick={() => {
+                  setOthersModalData({
+                    breakdown: othersBreakdown,
+                    total: othersTotal,
+                    count: othersBreakdown.length,
+                    totalAllGLCost: totalAllGLCost || costByGLAccount.reduce((sum, item) => sum + item.totalCost, 0),
+                    averagePerQuarter: costByQuarter?.length || 1
+                  });
+                  setShowOthersModal(true);
+                }}
+                className="px-3 py-1.5 bg-gradient-to-r from-[#9e1f63] to-[#e05e3d] text-white rounded-lg hover:shadow-lg transition-all duration-200 text-sm font-medium flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                View Others Details
+              </button>
             )}
           </div>
         </div>
@@ -3897,90 +3923,9 @@ export default function Dashboard() {
               <Tooltip
                 content={(props) => {
                   const { active, payload, label } = props;
+                  // Disable tooltip for "Others" column - we have a button for that now
                   if (active && payload && payload.length && label === "Others") {
-                    const data = payload[0].payload;
-                    if (data.isOthers && data.breakdown) {
-                      const totalPercentage = (data.totalCost / totalAllGLCost * 100).toFixed(1);
-                      return (
-                        <div style={{
-                          ...CHART_STYLES.tooltip.contentStyle,
-                          padding: '12px',
-                          maxHeight: '450px',
-                          overflowY: 'auto',
-                          minWidth: '350px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}>
-                          <div style={{
-                            fontWeight: 'bold',
-                            marginBottom: '10px',
-                            borderBottom: '2px solid #9e1f63',
-                            paddingBottom: '6px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}>
-                            <span>Others - {data.breakdown.length} GL Accounts</span>
-                            <span style={{ color: '#9e1f63' }}>{totalPercentage}%</span>
-                          </div>
-                          <div style={{ marginBottom: '8px', fontSize: '13px', fontWeight: '600' }}>
-                            Total: {formatCurrency(data.totalCost)}
-                          </div>
-                          <div style={{ fontSize: '12px' }}>
-                            <div style={{ marginBottom: '6px', fontSize: '11px', color: '#666', fontStyle: 'italic' }}>
-                              Individual GL Accounts:
-                            </div>
-                            {data.breakdown.map((item: any, idx: number) => {
-                              const itemPercentage = ((item.totalCost / data.totalCost) * 100).toFixed(1);
-                              return (
-                                <div key={idx} style={{
-                                  marginBottom: '6px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '4px 0',
-                                  borderBottom: idx < data.breakdown.length - 1 ? '1px solid #f0f0f0' : 'none'
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                                    <div style={{
-                                      width: '14px',
-                                      height: '14px',
-                                      backgroundColor: getOthersColor(idx),
-                                      marginRight: '8px',
-                                      borderRadius: '2px',
-                                      border: '1px solid rgba(0,0,0,0.1)'
-                                    }} />
-                                    <span style={{
-                                      marginRight: '10px',
-                                      maxWidth: '180px',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap'
-                                    }} title={item.name}>
-                                      {item.name}
-                                    </span>
-                                  </div>
-                                  <div style={{ textAlign: 'right', minWidth: '100px' }}>
-                                    <div style={{ fontWeight: '500' }}>{formatCurrency(item.totalCost, true)}</div>
-                                    <div style={{ fontSize: '10px', color: '#888' }}>
-                                      {itemPercentage}% of Others
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div style={{
-                            marginTop: '10px',
-                            paddingTop: '8px',
-                            borderTop: '1px solid #e0e0e0',
-                            fontSize: '11px',
-                            color: '#666'
-                          }}>
-                            <div>Quarter Average: {formatCurrency(data.totalCost / (costByQuarter?.length || 1), true)}</div>
-                          </div>
-                        </div>
-                      );
-                    }
+                    return null; // Don't show tooltip for Others
                   }
                   // Default tooltip for non-Others bars
                   if (active && payload && payload.length) {
@@ -4199,6 +4144,155 @@ export default function Dashboard() {
           }
         })()}
       </div>
+
+      {/* Others GL Accounts Modal */}
+      {showOthersModal && othersModalData && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowOthersModal(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            style={{
+              animation: 'slideUp 0.3s ease-out',
+            }}
+          >
+            {/* Modal Header with Gradient */}
+            <div
+              className="px-6 py-4 rounded-t-xl text-white flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #9e1f63 0%, #e05e3d 100%)'
+              }}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold mb-1">Others - GL Account Details</h2>
+                  <div className="text-sm opacity-90">
+                    <span className="mr-4">{othersModalData.count} GL Accounts</span>
+                    <span>Total Value: {formatCurrency(othersModalData.total)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOthersModal(false)}
+                  className="p-1 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content Area */}
+            <div
+              className="flex-1 overflow-y-auto p-6"
+              style={{
+                maxHeight: 'calc(80vh - 180px)',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#9e1f63 #f0f0f0'
+              }}
+            >
+              <div className="space-y-2">
+                {othersModalData.breakdown
+                  .sort((a: any, b: any) => b.totalCost - a.totalCost)
+                  .map((item: any, index: number) => {
+                    const percentage = ((item.totalCost / othersModalData.totalAllGLCost) * 100).toFixed(2);
+                    const avgPerQuarter = item.totalCost / othersModalData.averagePerQuarter;
+                    const color = getOthersColor(index);
+
+                    return (
+                      <div
+                        key={index}
+                        className="group hover:bg-gray-50 rounded-lg p-3 transition-all duration-200 border border-transparent hover:border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Color Indicator */}
+                          <div
+                            className="w-4 h-4 rounded flex-shrink-0 ring-2 ring-offset-1 ring-transparent group-hover:ring-opacity-50"
+                            style={{
+                              backgroundColor: color,
+                              boxShadow: `0 2px 4px ${color}40`
+                            }}
+                          />
+
+                          {/* GL Account Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-800 truncate group-hover:text-[#9e1f63] transition-colors">
+                                  {item.name}
+                                </p>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  <span className="mr-4">
+                                    Value: <span className="font-semibold text-gray-800">{formatCurrency(item.totalCost)}</span>
+                                  </span>
+                                  <span className="mr-4">
+                                    Percentage: <span className="font-semibold text-gray-800">{percentage}% of Others</span>
+                                  </span>
+                                  <span>
+                                    Avg/Quarter: <span className="font-semibold text-gray-800">{formatCurrency(avgPerQuarter)}</span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Percentage Bar Visualization */}
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${Math.min(parseFloat(percentage) * 10, 100)}%`,
+                                      backgroundColor: color
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t bg-gray-50 rounded-b-xl flex-shrink-0">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Quarter Average:</span>{" "}
+                  <span className="text-gray-800 font-semibold">
+                    {formatCurrency(othersModalData.total / othersModalData.averagePerQuarter)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowOthersModal(false)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <style jsx>{`
+            @keyframes slideUp {
+              from {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }

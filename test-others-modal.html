@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Others Modal Test - PROCEED Cost Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #9e1f63;
+            margin-bottom: 20px;
+        }
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .check {
+            color: #4caf50;
+            margin-right: 10px;
+        }
+        .button-example {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #9e1f63 0%, #e05e3d 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 20px 0;
+        }
+        .button-example:hover {
+            box-shadow: 0 4px 12px rgba(158, 31, 99, 0.3);
+        }
+        .modal-preview {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #9e1f63 0%, #e05e3d 100%);
+            color: white;
+            padding: 20px;
+        }
+        .modal-content {
+            padding: 20px;
+            background: white;
+        }
+        .gl-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            transition: all 0.2s;
+        }
+        .gl-item:hover {
+            background: #f0f0f0;
+        }
+        .color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .instructions {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Others Modal Implementation Complete</h1>
+
+        <div class="success-box">
+            <strong>Success!</strong> The "View Others Details" button and modal have been successfully implemented in the GL Accounts chart.
+        </div>
+
+        <h2>🎯 Implementation Details</h2>
+        <ul class="feature-list">
+            <li><span class="check">✓</span> <strong>Button Added:</strong> "View Others Details" button appears next to "Others: X GLs" text when Others column exists</li>
+            <li><span class="check">✓</span> <strong>Modal Structure:</strong> Full-featured modal with gradient header, scrollable content, and footer</li>
+            <li><span class="check">✓</span> <strong>Data Display:</strong> Shows all GL accounts in Others with color indicators, values, percentages, and quarter averages</li>
+            <li><span class="check">✓</span> <strong>Interactions:</strong> Click outside to close, close button in header and footer, smooth animations</li>
+            <li><span class="check">✓</span> <strong>PROCEED Branding:</strong> Uses gradient from #9e1f63 to #e05e3d, consistent with brand colors</li>
+            <li><span class="check">✓</span> <strong>Performance:</strong> Scrollable list handles any number of GL accounts efficiently</li>
+        </ul>
+
+        <h2>🔘 Button Appearance</h2>
+        <p>The button appears in the GL chart header when there are more than 15 GL accounts:</p>
+        <button class="button-example">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+            View Others Details
+        </button>
+
+        <h2>📋 Modal Preview</h2>
+        <div class="modal-preview">
+            <div class="modal-header">
+                <h3 style="margin: 0 0 10px 0;">Others - GL Account Details</h3>
+                <div style="font-size: 14px; opacity: 0.9;">
+                    <span style="margin-right: 20px;">24 GL Accounts</span>
+                    <span>Total Value: SAR 2,345,678</span>
+                </div>
+            </div>
+            <div class="modal-content">
+                <div class="gl-item">
+                    <div class="color-dot" style="background: #8B7355;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">Travel & Entertainment Expenses</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            Value: SAR 234,567 | Percentage: 2.34% | Avg/Quarter: SAR 58,642
+                        </div>
+                    </div>
+                </div>
+                <div class="gl-item">
+                    <div class="color-dot" style="background: #708090;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">Office Supplies & Equipment</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            Value: SAR 189,234 | Percentage: 1.89% | Avg/Quarter: SAR 47,309
+                        </div>
+                    </div>
+                </div>
+                <div class="gl-item">
+                    <div class="color-dot" style="background: #CD853F;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">Marketing & Promotions</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            Value: SAR 156,789 | Percentage: 1.57% | Avg/Quarter: SAR 39,197
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>📍 Location in Dashboard</h2>
+        <div class="instructions">
+            <strong>Where to find it:</strong>
+            <ol>
+                <li>Navigate to the <strong>GL Accounts by Total Cost</strong> chart</li>
+                <li>Look for the chart header area on the right side</li>
+                <li>When there are more than 15 GL accounts, you'll see:
+                    <ul>
+                        <li>Text showing "Others: X GLs"</li>
+                        <li>The new <strong>"View Others Details"</strong> button next to it</li>
+                    </ul>
+                </li>
+                <li>Click the button to open the modal with full details</li>
+            </ol>
+        </div>
+
+        <h2>🚀 Key Features</h2>
+        <ul class="feature-list">
+            <li><span class="check">✓</span> <strong>Sorted Display:</strong> GL accounts are sorted by value (highest first)</li>
+            <li><span class="check">✓</span> <strong>Visual Indicators:</strong> Each GL has a unique color matching the stacked bar visualization</li>
+            <li><span class="check">✓</span> <strong>Hover Effects:</strong> Items highlight on hover for better readability</li>
+            <li><span class="check">✓</span> <strong>Percentage Bars:</strong> Visual representation of relative values</li>
+            <li><span class="check">✓</span> <strong>Responsive Design:</strong> Modal adapts to different screen sizes</li>
+            <li><span class="check">✓</span> <strong>Smooth Animations:</strong> Slide-up entrance and fade-in effects</li>
+            <li><span class="check">✓</span> <strong>Custom Scrollbar:</strong> Styled to match PROCEED brand colors</li>
+        </ul>
+
+        <h2>✨ Testing</h2>
+        <p>To test the implementation:</p>
+        <ol>
+            <li>Open the dashboard at <a href="http://localhost:5176/" target="_blank">http://localhost:5176/</a></li>
+            <li>Ensure data is loaded (upload Excel if needed)</li>
+            <li>Scroll to the <strong>GL Accounts by Total Cost</strong> chart</li>
+            <li>Look for the <strong>"View Others Details"</strong> button when Others column is present</li>
+            <li>Click the button to open the modal</li>
+            <li>Test scrolling through the GL accounts list</li>
+            <li>Test closing via the X button, Close button, or clicking outside</li>
+        </ol>
+
+        <div class="success-box" style="background: #e3f2fd; border-color: #2196f3; margin-top: 30px;">
+            <strong>Implementation Status:</strong> The feature is fully implemented and ready for use. The modal provides a much better user experience than the tooltip, especially for viewing long lists of GL accounts with proper scrolling support.
+        </div>
+    </div>
+</body>
+</html>
